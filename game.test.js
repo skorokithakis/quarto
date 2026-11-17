@@ -61,6 +61,23 @@ test('view derives board, pool, hand, seat and step', () => {
   assert.equal(view.step, 'select');
 });
 
+test('view reports the most recently placed square', () => {
+  const game = createGame(0);
+  assert.equal(viewOf(game).lastPlaced, null);
+
+  const selected = applyAction(game, { seat: 0, type: 'select', piece: 5 });
+  assert.equal(selected.ok, true);
+  assert.equal(viewOf(selected.game).lastPlaced, null);
+
+  const placed = applyAction(selected.game, { seat: 1, type: 'place', square: 7 });
+  assert.equal(placed.ok, true);
+  assert.equal(viewOf(placed.game).lastPlaced, 7);
+
+  const selectedAgain = applyAction(placed.game, { seat: 1, type: 'select', piece: 4 });
+  assert.equal(selectedAgain.ok, true);
+  assert.equal(viewOf(selectedAgain.game).lastPlaced, 7);
+});
+
 test('row win by the placer before selecting their next piece', () => {
   const { actions, seat } = scriptedPlacements(0, [
     placement(1, 0),

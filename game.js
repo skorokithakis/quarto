@@ -146,6 +146,7 @@ export function viewOf(game) {
     step: state.step,
     result: state.result,
     wrongClaim: state.wrongClaim,
+    lastPlaced: state.lastPlaced,
   };
 }
 
