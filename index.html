@@ -1,0 +1,1630 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:,">
+  <title>Quarto</title>
+  <style>
+    :root {
+      --bg: #f3f0e8;
+      --surface: #fffdf8;
+      --ink: #22261f;
+      --muted: #6f7367;
+      --line: #ded8ca;
+      --accent: #2f6b4f;
+      --accent-dark: #24553e;
+      --accent-soft: #e3efe8;
+      --danger: #a33b32;
+      --radius: 16px;
+      --shadow: 0 16px 40px rgba(34, 38, 31, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body { margin: 0; }
+
+    body {
+      min-height: 100vh;
+      padding: 28px 20px 48px;
+      display: flex;
+      justify-content: center;
+      background:
+        radial-gradient(900px 500px at 50% -20%, #e6efe7 0%, transparent 60%),
+        var(--bg);
+      color: var(--ink);
+      font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    main { width: min(660px, 100%); }
+
+    .brand { text-align: center; margin-bottom: 28px; }
+    .brand h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.6rem, 9vw, 3.8rem);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      line-height: 1.05;
+    }
+    .brand p { margin: 6px 0 0; color: var(--muted); font-size: 0.95rem; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    h2 { margin: 0 0 8px; font-size: 1.25rem; letter-spacing: -0.01em; }
+    p { margin: 0 0 16px; }
+    .muted { color: var(--muted); }
+
+    .button {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      padding: 11px 16px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+    }
+    .button:hover { background: #f7f3ea; border-color: #cfc8b8; }
+    .button:active { transform: translateY(1px); }
+    .button:focus-visible, a:focus-visible, input:focus-visible {
+      outline: 3px solid rgba(47, 107, 79, 0.3);
+      outline-offset: 2px;
+    }
+    .button-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .button-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+
+    .lobby-card { text-align: center; padding: 30px 24px; }
+    .lobby-card p { max-width: 42ch; margin-left: auto; margin-right: auto; }
+    .last-room { margin: 18px 0 0; font-size: 0.92rem; }
+    .last-room a { color: var(--accent); font-weight: 600; text-decoration: none; }
+    .last-room a:hover { text-decoration: underline; }
+    .error { color: var(--danger); font-size: 0.92rem; margin: 14px 0 0; }
+
+    .room-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .eyebrow {
+      margin: 0 0 2px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .room-code {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.08em;
+      color: var(--ink);
+    }
+    .quiet-link {
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-decoration: none;
+      padding-bottom: 2px;
+    }
+    .quiet-link:hover { color: var(--ink); text-decoration: underline; }
+
+    .share-card label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .share-row { display: flex; gap: 8px; }
+    .share-row input {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fbf8f1;
+      color: var(--muted);
+      font: 0.9rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 14px 0 18px;
+      padding: 6px 11px 6px 9px;
+      border-radius: 999px;
+      background: #f0ece2;
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #a8a498;
+      flex: 0 0 auto;
+    }
+    .status[data-state="connected"] { background: var(--accent-soft); color: var(--accent-dark); }
+    .status[data-state="connected"] .status-dot {
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(47, 107, 79, 0.13);
+    }
+    .status[data-state="reconnecting"] { background: #f6ecda; color: #8a5a18; }
+    .status[data-state="reconnecting"] .status-dot {
+      background: #bf812d;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse { 50% { opacity: 0.35; } }
+    @media (prefers-reduced-motion: reduce) {
+      .status-dot { animation: none !important; }
+    }
+
+    .seats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .seats { grid-template-columns: 1fr; } }
+
+    .seat {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      min-height: 108px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .seat.is-you {
+      border-color: rgba(47, 107, 79, 0.55);
+      box-shadow: 0 0 0 3px rgba(47, 107, 79, 0.09);
+    }
+    .seat-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .seat-name { font-size: 1.15rem; font-weight: 600; overflow-wrap: anywhere; }
+    .seat.is-empty .seat-name { color: #a7a396; font-weight: 500; font-style: italic; }
+    .you-badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .notice { margin: 16px 0 0; color: var(--muted); font-size: 0.9rem; }
+
+    .game-card { margin-top: 16px; }
+    .game-status {
+      margin: 0 0 14px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .game-notice {
+      margin: 0 0 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #fbe9e6;
+      color: var(--danger);
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+    .game-layout { display: grid; gap: 18px; }
+    @media (min-width: 600px) {
+      .game-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(170px, 0.7fr);
+        align-items: start;
+        gap: 22px;
+      }
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      width: 100%;
+      aspect-ratio: 1;
+    }
+    .square {
+      appearance: none;
+      min-width: 0;
+      min-height: 0;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8f4eb;
+      color: var(--ink);
+      cursor: default;
+    }
+    .square.is-placeable { border-color: #c4bdab; cursor: pointer; }
+    .square.is-placeable:hover,
+    .square.is-placeable:focus-visible {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
+    .square.is-winning {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 3px rgba(47, 107, 79, 0.4);
+    }
+    .square:disabled { color: var(--ink); }
+
+    .game-side { display: grid; gap: 14px; }
+    .panel-label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .hand {
+      min-height: 72px;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      background: #fbf8f1;
+    }
+    .hand .piece { width: 54px; height: 54px; }
+    .hand-empty { color: #b3aea0; font-size: 0.9rem; }
+
+    .pool {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .pool-piece {
+      appearance: none;
+      aspect-ratio: 1;
+      min-width: 0;
+      padding: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fbf8f1;
+      color: var(--ink);
+      cursor: default;
+    }
+    .pool-piece.is-selectable { cursor: pointer; }
+    .pool-piece.is-selectable:hover,
+    .pool-piece.is-selectable:focus-visible {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
+    .pool-piece:disabled { color: var(--ink); }
+
+    .piece { display: block; width: 100%; height: 100%; }
+    .piece svg { display: block; width: 100%; height: 100%; }
+
+    .game-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .game-actions .button { padding: 10px 14px; }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(30, 35, 28, 0.45);
+      backdrop-filter: blur(3px);
+    }
+    .name-card {
+      width: min(420px, 100%);
+      background: var(--surface);
+      border-radius: 18px;
+      padding: 26px;
+      box-shadow: 0 24px 70px rgba(20, 24, 18, 0.3);
+    }
+    .name-card h2 { font-size: 1.4rem; }
+    .name-card label {
+      display: block;
+      margin: 18px 0 7px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .name-card input {
+      width: 100%;
+      padding: 12px 13px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fbf8f1;
+      color: var(--ink);
+      font: inherit;
+    }
+    .name-card .button { width: 100%; margin-top: 16px; }
+    .name-card p { margin-bottom: 0; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="brand">
+      <h1>Quarto</h1>
+      <p>A two-player game of four-in-a-row.</p>
+    </header>
+
+    <section id="lobby" hidden>
+      <div class="card lobby-card">
+        <h2>Play online</h2>
+        <p class="muted">Create a room and send the link to a friend. The first two players to open it take the seats.</p>
+        <button id="createGame" class="button button-primary" type="button">Create game</button>
+        <p class="last-room" id="lastRoomWrap" hidden>
+          <a id="lastRoomLink" href="#"></a>
+        </p>
+        <p class="error" id="lobbyError" role="alert" hidden></p>
+      </div>
+    </section>
+
+    <section id="room" hidden>
+      <div class="room-head">
+        <div>
+          <p class="eyebrow">Room <span class="room-code" id="roomCode"></span></p>
+        </div>
+        <a class="quiet-link" id="leaveRoom" href="./">Back to lobby</a>
+      </div>
+
+      <div class="card share-card">
+        <label for="shareLink">Share link</label>
+        <div class="share-row">
+          <input id="shareLink" type="text" readonly>
+          <button id="copyLink" class="button" type="button">Copy link</button>
+        </div>
+      </div>
+
+      <p class="status" id="connection" data-state="connecting" role="status" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="connectionText">Connecting&hellip;</span>
+      </p>
+
+      <div class="seats">
+        <div class="seat is-empty" id="seat0">
+          <span class="seat-label">Seat 1</span>
+          <span class="seat-name">Empty</span>
+          <span class="you-badge" hidden>You</span>
+        </div>
+        <div class="seat is-empty" id="seat1">
+          <span class="seat-label">Seat 2</span>
+          <span class="seat-name">Empty</span>
+          <span class="you-badge" hidden>You</span>
+        </div>
+      </div>
+
+      <p class="notice" id="spectatorNote" hidden>Both seats are taken. You are spectating this game.</p>
+
+      <section class="card game-card" id="game" hidden>
+        <p class="game-status" id="gameStatus" role="status" aria-live="polite"></p>
+        <p class="game-notice" id="gameNotice" role="alert" hidden></p>
+
+        <div class="game-layout">
+          <div class="board" id="board" role="group" aria-label="Board"></div>
+          <div class="game-side">
+            <div>
+              <span class="panel-label" id="handLabel">Piece in hand</span>
+              <div class="hand" id="hand" aria-labelledby="handLabel"></div>
+            </div>
+            <div>
+              <span class="panel-label" id="poolLabel">Remaining pieces</span>
+              <div class="pool" id="pool" aria-labelledby="poolLabel"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="game-actions" id="gameActions">
+          <button class="button button-primary" id="claimButton" type="button" hidden>Quarto!</button>
+          <button class="button" id="passButton" type="button" hidden>Pass</button>
+          <button class="button" id="drawButton" type="button" hidden>Accept draw</button>
+          <button class="button" id="undoButton" type="button" hidden>Undo</button>
+          <button class="button" id="newGameButton" type="button" hidden>New game</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="overlay" id="nameOverlay" role="dialog" aria-modal="true" aria-labelledby="nameTitle" hidden>
+    <form class="name-card" id="nameForm">
+      <p class="eyebrow" id="nameEyebrow">Welcome</p>
+      <h2 id="nameTitle">Take a seat</h2>
+      <p class="muted" id="nameHint">Pick a name your opponent will see.</p>
+      <label for="nameInput">Your name</label>
+      <input id="nameInput" name="name" maxlength="32" autocomplete="nickname" spellcheck="false">
+      <button class="button button-primary" id="nameButton" type="submit">Take seat</button>
+    </form>
+  </div>
+
+  <script type="module">
+    import { isLegalGame } from './game.js';
+
+    (() => {
+      'use strict';
+
+      /*
+       * Internal interface for the game layer (game.js, added in a later ticket):
+       *
+       *   window.QuartoOnline.getState()
+       *     -> deep copy of the current synced state, or null before the room loads.
+       *
+       *   window.QuartoOnline.getSeat()
+       *     -> 0, 1, or null (null means spectator or not loaded yet).
+       *
+       *   window.QuartoOnline.submit(state)
+       *     -> true if the change was accepted, false if this client is not
+       *        seated or no state has loaded yet. Takes the full state object;
+       *        `version` and `seats` are owned by this layer and are ignored.
+       *        The change is applied locally at once and posted to Gweet.
+       *
+       *   window.QuartoOnline.onStateChange(callback)
+       *     -> unsubscribe function. callback(state, seat) is called immediately
+       *        if a state is already loaded, then whenever a state is applied
+       *        (initial load, local submit, or a streamed update).
+       */
+
+      const GWEET_BASE = 'https://gweet.stavros.io';
+      const KEY_PREFIX = 'quarto';
+      const ROOM_LENGTH = 8;
+      // No I, O, 0 or 1: these are easy to confuse in a shared code.
+      const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const MAX_NAME_LENGTH = 32;
+
+      const STORAGE_CLIENT_ID = 'quarto.clientId';
+      const STORAGE_LAST_ROOM = 'quarto.lastRoom';
+      const STORAGE_STATE_PREFIX = 'quarto.state.';
+      const STORAGE_NAME = 'quarto.name';
+
+      const CONNECT_BACKOFF_START = 800;
+      const CONNECT_BACKOFF_FACTOR = 1.7;
+      const CONNECT_BACKOFF_MAX = 15000;
+      const POST_BACKOFF_START = 1000;
+      const POST_BACKOFF_MAX = 10000;
+      const REQUEST_TIMEOUT = 12000;
+      // Gweet sends a keepalive newline every 30 seconds; silence for longer
+      // than this means the connection is dead even if the socket still looks
+      // open (for example after a network change).
+      const STREAM_IDLE_TIMEOUT = 45000;
+
+      const $ = (id) => document.getElementById(id);
+
+      const els = {
+        lobby: $('lobby'),
+        room: $('room'),
+        createGame: $('createGame'),
+        lastRoomWrap: $('lastRoomWrap'),
+        lastRoomLink: $('lastRoomLink'),
+        lobbyError: $('lobbyError'),
+        roomCode: $('roomCode'),
+        leaveRoom: $('leaveRoom'),
+        shareLink: $('shareLink'),
+        copyLink: $('copyLink'),
+        connection: $('connection'),
+        connectionText: $('connectionText'),
+        seats: [$('seat0'), $('seat1')],
+        spectatorNote: $('spectatorNote'),
+        nameOverlay: $('nameOverlay'),
+        nameForm: $('nameForm'),
+        nameEyebrow: $('nameEyebrow'),
+        nameTitle: $('nameTitle'),
+        nameHint: $('nameHint'),
+        nameInput: $('nameInput'),
+        nameButton: $('nameButton'),
+      };
+
+      const clientId = getClientId();
+
+      let roomCode = null;
+      let currentState = null;
+      let subscriber = null;
+
+      let playerName = null;
+      let connecting = false;
+      let connectTimer = null;
+      let connectDelay = CONNECT_BACKOFF_START;
+
+      let pushing = false;
+      let pushAgain = false;
+      let pushTimer = null;
+      let pushDelay = POST_BACKOFF_START;
+      let postFailing = false;
+      let streamConnected = false;
+
+      let nameResolver = null;
+      let copyFeedbackTimer = null;
+
+      // ── Storage ──────────────────────────────────────────────────────────
+
+      function storageGet(key) {
+        try { return window.localStorage.getItem(key); } catch { return null; }
+      }
+
+      function storageSet(key, value) {
+        try { window.localStorage.setItem(key, value); } catch { /* unavailable */ }
+      }
+
+      function storageRemove(key) {
+        try { window.localStorage.removeItem(key); } catch { /* unavailable */ }
+      }
+
+      function getClientId() {
+        const stored = storageGet(STORAGE_CLIENT_ID);
+        if (stored && /^[A-Za-z0-9-]{8,64}$/.test(stored)) return stored;
+
+        let id;
+        if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+          const bytes = new Uint8Array(16);
+          window.crypto.getRandomValues(bytes);
+          id = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+        } else {
+          id = `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        }
+        storageSet(STORAGE_CLIENT_ID, id);
+        return id;
+      }
+
+      function stateStorageKey(code) {
+        return STORAGE_STATE_PREFIX + code;
+      }
+
+      function loadLocalState(code) {
+        const raw = storageGet(stateStorageKey(code));
+        if (!raw) return null;
+        try {
+          const parsed = JSON.parse(raw);
+          return isValidState(parsed) ? parsed : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function saveLocalState(state) {
+        storageSet(stateStorageKey(roomCode), JSON.stringify(state));
+      }
+
+      // ── State helpers ────────────────────────────────────────────────────
+
+      function clone(value) {
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function isSeat(value) {
+        return value === null || (
+          Boolean(value) &&
+          typeof value === 'object' &&
+          !Array.isArray(value) &&
+          typeof value.id === 'string' &&
+          value.id.length > 0 &&
+          typeof value.name === 'string'
+        );
+      }
+
+      function isValidState(value) {
+        return (
+          Boolean(value) &&
+          typeof value === 'object' &&
+          !Array.isArray(value) &&
+          Number.isInteger(value.version) &&
+          value.version >= 0 &&
+          Array.isArray(value.seats) &&
+          value.seats.length === 2 &&
+          value.seats.every(isSeat) &&
+          (value.starter === 0 || value.starter === 1) &&
+          Array.isArray(value.actions) &&
+          isLegalGame(value)
+        );
+      }
+
+      function seatOf(state) {
+        if (!state) return null;
+        for (let i = 0; i < 2; i++) {
+          if (state.seats[i] && state.seats[i].id === clientId) return i;
+        }
+        return null;
+      }
+
+      function defaultName(seat) {
+        return seat === 1 ? 'Player 2' : 'Player 1';
+      }
+
+      function typedName(raw) {
+        return String(raw || '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, MAX_NAME_LENGTH)
+          .trim();
+      }
+
+      function cleanName(raw, seat) {
+        return typedName(raw) || defaultName(seat);
+      }
+
+      // ── Gweet ────────────────────────────────────────────────────────────
+
+      function gweetKey() {
+        return `${KEY_PREFIX}-${roomCode}`;
+      }
+
+      function gweetStreamUrl(query) {
+        return `${GWEET_BASE}/stream/${encodeURIComponent(gweetKey())}/${query}`;
+      }
+
+      // A cache-busting query parameter avoids browser-cached GET responses
+      // without sending non-safelisted headers (which would force a CORS
+      // preflight, and Gweet does not answer OPTIONS).
+      function cacheBuster() {
+        return `_=${Date.now().toString(36)}`;
+      }
+
+      async function fetchWithTimeout(url, options = {}, consume = null) {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+        try {
+          const res = await fetch(url, { ...options, signal: controller.signal });
+          return consume ? await consume(res) : res;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      // A single Gweet message is {"created","name","values":{"state":[json]}}.
+      // Some messages (the POST response) wrap that in {"message":...}; accept both.
+      function extractStateRaw(message) {
+        if (!message || typeof message !== 'object') return null;
+        const values = message.values;
+        if (values && Array.isArray(values.state) && typeof values.state[0] === 'string') {
+          return values.state[0];
+        }
+        if (message.message) return extractStateRaw(message.message);
+        return null;
+      }
+
+      async function fetchLatestState() {
+        // Read the body inside the timeout: headers can arrive promptly while
+        // the body never does.
+        const data = await fetchWithTimeout(
+          gweetStreamUrl(`?latest=1&${cacheBuster()}`),
+          {},
+          async (res) => {
+            if (!res.ok) throw new Error(`Gweet GET failed with HTTP ${res.status}`);
+            return res.json();
+          },
+        );
+        if (!data || !Array.isArray(data.messages)) {
+          throw new Error('Unexpected Gweet response');
+        }
+        if (data.messages.length === 0) return null;
+
+        const raw = extractStateRaw(data.messages[data.messages.length - 1]);
+        if (raw === null) throw new Error('Gweet message has no state field');
+
+        let parsed;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          throw new Error('Gweet state is not valid JSON');
+        }
+        if (!isValidState(parsed)) {
+          throw new Error('Gweet state has an unexpected shape');
+        }
+        return parsed;
+      }
+
+      function pushStateNow() {
+        if (!currentState || !roomCode) return;
+
+        if (pushTimer) {
+          clearTimeout(pushTimer);
+          pushTimer = null;
+        }
+        if (pushing) {
+          pushAgain = true;
+          return;
+        }
+
+        pushing = true;
+        pushAgain = false;
+        const snapshot = currentState;
+        const body = new URLSearchParams();
+        body.set('state', JSON.stringify(snapshot));
+
+        fetchWithTimeout(gweetStreamUrl(''), { method: 'POST', body })
+          .then((res) => {
+            if (!res.ok) throw new Error(`Gweet POST failed with HTTP ${res.status}`);
+            pushing = false;
+            pushDelay = POST_BACKOFF_START;
+            if (postFailing) {
+              postFailing = false;
+              refreshConnection();
+            }
+            if (pushAgain) pushStateNow();
+          })
+          .catch((err) => {
+            console.warn('Could not post state; will retry.', err);
+            pushing = false;
+            postFailing = true;
+            refreshConnection();
+            schedulePushRetry();
+          });
+      }
+
+      function schedulePushRetry() {
+        if (pushTimer || !currentState) return;
+        pushTimer = window.setTimeout(() => {
+          pushTimer = null;
+          pushStateNow();
+        }, pushDelay);
+        pushDelay = Math.min(pushDelay * 2, POST_BACKOFF_MAX);
+      }
+
+      // The connection pill is driven by both the live stream and the POST
+      // queue: a failed POST means the move has not reached the server yet,
+      // even while the stream is still open.
+      function refreshConnection() {
+        if (postFailing) {
+          setConnection('Reconnecting');
+        } else if (streamConnected) {
+          setConnection('Connected');
+        }
+      }
+
+      // Apply remote-or-local after a successful fetch. Returns true if a state
+      // existed, false when this is a brand new room with nothing stored.
+      function reconcile(remote) {
+        const local = currentState || (roomCode ? loadLocalState(roomCode) : null);
+
+        if (!remote) {
+          if (!local) return false;
+          if (currentState !== local) setState(local);
+          pushStateNow();
+          return true;
+        }
+
+        if (local && local.version > remote.version) {
+          if (currentState !== local) setState(local);
+          pushStateNow();
+        } else {
+          setState(remote);
+        }
+        return true;
+      }
+
+      async function syncFromServer() {
+        let remote;
+        try {
+          remote = await fetchLatestState();
+        } catch (err) {
+          // A failed fetch is not an empty room: retry rather than create.
+          console.warn('Could not fetch room state.', err);
+          return false;
+        }
+
+        reconcile(remote);
+
+        // Ask only once. The room can change while the prompt is open, so the
+        // answer is applied to a fresh fetch, never to the state that opened
+        // the prompt.
+        if (playerName === null && seatOf(currentState) === null &&
+            (!currentState || currentState.seats.indexOf(null) !== -1)) {
+          const mode = currentState ? 'join' : 'create';
+          const expectedSeat = currentState ? currentState.seats.indexOf(null) : 0;
+          playerName = await askName(mode, expectedSeat);
+
+          let latest;
+          try {
+            latest = await fetchLatestState();
+          } catch (err) {
+            console.warn('Could not fetch room state after the name prompt.', err);
+            return false;
+          }
+
+          reconcile(latest);
+        }
+
+        settleSeat();
+        return true;
+      }
+
+      // With a name already given, a free seat or an empty room is enough to
+      // (re)try entering the game. Runs after a fetch or a state change, and
+      // always against the state in hand at that moment.
+      function settleSeat() {
+        if (playerName === null) return;
+        if (currentState === null) {
+          createFreshState(playerName);
+          return;
+        }
+        if (seatOf(currentState) !== null) return;
+        const freeSeat = currentState.seats.indexOf(null);
+        if (freeSeat !== -1) claimSeat(freeSeat, playerName);
+      }
+
+      function createFreshState(rawName) {
+        setState({
+          version: 1,
+          seats: [{ id: clientId, name: cleanName(rawName, 0) }, null],
+          starter: 0,
+          actions: [],
+        });
+        pushStateNow();
+      }
+
+      function claimSeat(index, rawName) {
+        if (!currentState || currentState.seats[index]) return;
+        const next = clone(currentState);
+        next.seats[index] = { id: clientId, name: cleanName(rawName, index) };
+        next.version = currentState.version + 1;
+        setState(next);
+        pushStateNow();
+      }
+
+      function applyRemoteState(incoming) {
+        if (!isValidState(incoming)) return false;
+        if (currentState && incoming.version < currentState.version) return false;
+        setState(incoming);
+        return true;
+      }
+
+      function handleStreamLine(line) {
+        const text = line.trim();
+        if (!text) return; // keepalive
+
+        let message;
+        try {
+          message = JSON.parse(text);
+        } catch {
+          console.warn('Ignoring malformed message from Gweet stream.');
+          return;
+        }
+
+        const raw = extractStateRaw(message);
+        if (raw === null) return;
+
+        let incoming;
+        try {
+          incoming = JSON.parse(raw);
+        } catch {
+          console.warn('Ignoring streamed state that is not valid JSON.');
+          return;
+        }
+        applyRemoteState(incoming);
+      }
+
+      async function openStream() {
+        const controller = new AbortController();
+        let watchdog = null;
+
+        const touch = () => {
+          if (watchdog) clearTimeout(watchdog);
+          watchdog = window.setTimeout(() => {
+            console.warn('Gweet stream went silent; reconnecting.');
+            controller.abort();
+          }, STREAM_IDLE_TIMEOUT);
+        };
+        // The watchdog also covers the handshake: a stream request that never
+        // returns headers must not block the connect loop.
+        touch();
+
+        try {
+          let response;
+          try {
+            response = await fetch(gweetStreamUrl(`?streaming=1&${cacheBuster()}`), {
+              signal: controller.signal,
+            });
+          } catch (err) {
+            console.warn('Could not open Gweet stream.', err);
+            return;
+          }
+
+          if (!response.ok || !response.body) {
+            console.warn(`Gweet stream failed with HTTP ${response.status}`);
+            return;
+          }
+
+          connectDelay = CONNECT_BACKOFF_START;
+          streamConnected = true;
+          refreshConnection();
+
+          try {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            touch();
+
+            // The stream only carries messages posted after we subscribe. Fetch
+            // the latest state once more now that the subscription is open, to
+            // close the gap between the pre-connect fetch and registration.
+            try {
+              const latest = await fetchLatestState();
+              reconcile(latest);
+            } catch (err) {
+              console.warn('Post-connect refresh failed; reconnecting to stay in sync.', err);
+              try { await reader.cancel(); } catch { /* ignore */ }
+              return;
+            }
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                touch();
+                buffer += decoder.decode(value, { stream: true });
+                let newline;
+                while ((newline = buffer.indexOf('\n')) !== -1) {
+                  const line = buffer.slice(0, newline);
+                  buffer = buffer.slice(newline + 1);
+                  handleStreamLine(line);
+                }
+              }
+            } catch (err) {
+              if (err.name !== 'AbortError') {
+                console.warn('Gweet stream closed.', err);
+              }
+            }
+          } finally {
+            streamConnected = false;
+          }
+        } finally {
+          if (watchdog) clearTimeout(watchdog);
+        }
+      }
+
+      async function connect() {
+        if (connecting) return;
+        connecting = true;
+
+        try {
+          if (await syncFromServer()) {
+            await openStream();
+          }
+        } catch (err) {
+          console.warn('Connection loop failed.', err);
+        } finally {
+          connecting = false;
+        }
+
+        scheduleReconnect();
+      }
+
+      function scheduleReconnect() {
+        setConnection('Reconnecting');
+        if (connectTimer) return;
+
+        const delay = connectDelay;
+        connectDelay = Math.min(connectDelay * CONNECT_BACKOFF_FACTOR, CONNECT_BACKOFF_MAX);
+        connectTimer = window.setTimeout(() => {
+          connectTimer = null;
+          connect();
+        }, delay);
+      }
+
+      // ── Rendering ────────────────────────────────────────────────────────
+
+      function setState(next) {
+        currentState = next;
+        saveLocalState(next);
+        renderSeats();
+        if (subscriber) {
+          try {
+            subscriber(clone(next), seatOf(next));
+          } catch (err) {
+            console.error('State change callback failed.', err);
+          }
+        }
+        settleSeat();
+      }
+
+      function renderSeats() {
+        const state = currentState;
+        const mySeat = seatOf(state);
+
+        for (let i = 0; i < 2; i++) {
+          const el = els.seats[i];
+          const seat = state ? state.seats[i] : null;
+          const isMine = Boolean(seat) && seat.id === clientId;
+          el.classList.toggle('is-empty', !seat);
+          el.classList.toggle('is-you', isMine);
+          el.querySelector('.seat-name').textContent = seat ? seat.name : 'Empty';
+          el.querySelector('.you-badge').hidden = !isMine;
+        }
+
+        els.spectatorNote.hidden = !(
+          state && state.seats[0] && state.seats[1] && mySeat === null
+        );
+      }
+
+      function setConnection(label) {
+        els.connectionText.textContent = label;
+        els.connection.dataset.state =
+          label === 'Connected' ? 'connected'
+          : label === 'Reconnecting' ? 'reconnecting'
+          : 'connecting';
+      }
+
+      function shareUrl(code) {
+        const url = new URL(window.location.href);
+        url.search = '';
+        url.hash = '';
+        url.searchParams.set('room', code);
+        return url.href;
+      }
+
+      function renderShare() {
+        els.roomCode.textContent = roomCode;
+        els.shareLink.value = shareUrl(roomCode);
+        document.title = `Quarto \u2014 ${roomCode}`;
+      }
+
+      // ── Name prompt ──────────────────────────────────────────────────────
+
+      function askName(mode, seat) {
+        return new Promise((resolve) => {
+          nameResolver = resolve;
+          const fallback = defaultName(seat);
+
+          els.nameEyebrow.textContent = mode === 'create' ? 'New room' : `Room ${roomCode}`;
+          // The copy names no seat number: the seat is only known after the
+          // prompt, when the page reads the room state again.
+          els.nameTitle.textContent = mode === 'create' ? 'Create this game' : 'Join this game';
+          els.nameHint.textContent = 'Enter the name that your opponent will see.';
+          els.nameButton.textContent = mode === 'create' ? 'Create game' : 'Join game';
+          els.nameInput.value = storageGet(STORAGE_NAME) || '';
+          els.nameInput.placeholder = fallback;
+          els.nameOverlay.hidden = false;
+          window.setTimeout(() => els.nameInput.focus(), 0);
+        });
+      }
+
+      function onSubmitName(event) {
+        event.preventDefault();
+        if (!nameResolver) return;
+
+        const resolve = nameResolver;
+        nameResolver = null;
+        // The seat is only known after the post-prompt fetch, so keep the raw
+        // input and let the seat-specific default be applied when it is used.
+        const name = els.nameInput.value;
+        const typed = typedName(name);
+        if (typed) storageSet(STORAGE_NAME, typed);
+        else storageRemove(STORAGE_NAME);
+        els.nameOverlay.hidden = true;
+        resolve(name);
+      }
+
+      // ── Clipboard ────────────────────────────────────────────────────────
+
+      async function copyShareLink() {
+        let copied = false;
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(els.shareLink.value);
+            copied = true;
+          }
+        } catch { /* fall through */ }
+
+        if (!copied) {
+          els.shareLink.focus();
+          els.shareLink.select();
+          try {
+            copied = document.execCommand('copy');
+          } catch {
+            copied = false;
+          }
+        }
+
+        flashCopyLabel(copied ? 'Copied!' : 'Copy failed');
+        if (!copied) els.shareLink.select();
+      }
+
+      function flashCopyLabel(label) {
+        if (copyFeedbackTimer) clearTimeout(copyFeedbackTimer);
+        els.copyLink.textContent = label;
+        copyFeedbackTimer = window.setTimeout(() => {
+          copyFeedbackTimer = null;
+          els.copyLink.textContent = 'Copy link';
+        }, 1600);
+      }
+
+      // ── Lobby / room setup ───────────────────────────────────────────────
+
+      function newRoomCode() {
+        let code = '';
+        const limit = 256 - (256 % ROOM_ALPHABET.length);
+        const bytes = new Uint8Array(ROOM_LENGTH);
+
+        while (code.length < ROOM_LENGTH) {
+          window.crypto.getRandomValues(bytes);
+          for (const byte of bytes) {
+            if (byte >= limit) continue;
+            code += ROOM_ALPHABET[byte % ROOM_ALPHABET.length];
+            if (code.length === ROOM_LENGTH) break;
+          }
+        }
+        return code;
+      }
+
+      function normalizeRoomCode(raw) {
+        if (typeof raw !== 'string') return null;
+        const code = raw.trim().toUpperCase();
+        return /^[A-Z0-9]{1,64}$/.test(code) ? code : null;
+      }
+
+      function showLobby(message) {
+        els.lobby.hidden = false;
+        els.room.hidden = true;
+        els.lobbyError.hidden = !message;
+        els.lobbyError.textContent = message || '';
+        document.title = 'Quarto';
+
+        const last = normalizeRoomCode(storageGet(STORAGE_LAST_ROOM));
+        if (last) {
+          els.lastRoomWrap.hidden = false;
+          els.lastRoomLink.textContent = `Rejoin last room (${last})`;
+          els.lastRoomLink.href = '?room=' + encodeURIComponent(last);
+        } else {
+          els.lastRoomWrap.hidden = true;
+        }
+      }
+
+      function startRoom(code) {
+        roomCode = code;
+        storageSet(STORAGE_LAST_ROOM, code);
+
+        els.lobby.hidden = true;
+        els.room.hidden = false;
+        els.lobbyError.hidden = true;
+        renderShare();
+        renderSeats();
+        setConnection('Connecting\u2026');
+        connect();
+      }
+
+      // ── Boot ─────────────────────────────────────────────────────────────
+
+      window.QuartoOnline = Object.freeze({
+        getState() {
+          return currentState ? clone(currentState) : null;
+        },
+
+        getSeat() {
+          return seatOf(currentState);
+        },
+
+        submit(next) {
+          if (!currentState || seatOf(currentState) === null) return false;
+          if (!next || typeof next !== 'object') {
+            throw new TypeError('submit() expects a state object');
+          }
+          if (next.starter !== 0 && next.starter !== 1) {
+            throw new TypeError('state.starter must be 0 or 1');
+          }
+          if (!Array.isArray(next.actions)) {
+            throw new TypeError('state.actions must be an array');
+          }
+
+          let actions;
+          try {
+            actions = clone(next.actions);
+          } catch {
+            throw new TypeError('state.actions must be JSON-serializable');
+          }
+
+          // version and seats belong to the online layer, not to the caller.
+          setState({
+            version: currentState.version + 1,
+            seats: clone(currentState.seats),
+            starter: next.starter,
+            actions,
+          });
+          pushStateNow();
+          return true;
+        },
+
+        onStateChange(callback) {
+          if (typeof callback !== 'function') {
+            throw new TypeError('onStateChange() expects a function');
+          }
+          subscriber = callback;
+          if (currentState) {
+            try {
+              callback(clone(currentState), seatOf(currentState));
+            } catch (err) {
+              console.error('State change callback failed.', err);
+            }
+          }
+          return () => {
+            if (subscriber === callback) subscriber = null;
+          };
+        },
+      });
+
+      els.createGame.addEventListener('click', () => {
+        window.location.search = '?room=' + encodeURIComponent(newRoomCode());
+      });
+      els.copyLink.addEventListener('click', copyShareLink);
+      els.nameForm.addEventListener('submit', onSubmitName);
+      els.leaveRoom.href = window.location.pathname;
+
+      const params = new URLSearchParams(window.location.search);
+      const rawRoom = params.get('room');
+
+      if (rawRoom === null) {
+        showLobby();
+      } else {
+        const code = normalizeRoomCode(rawRoom);
+        if (code) {
+          startRoom(code);
+        } else {
+          showLobby('That room link is not valid.');
+        }
+      }
+    })();
+  </script>
+
+  <script type="module">
+    import { ATTRIBUTES, viewOf, applyAction, undo } from './game.js';
+
+    (() => {
+      'use strict';
+
+      const $ = (id) => document.getElementById(id);
+
+      const els = {
+        game: $('game'),
+        status: $('gameStatus'),
+        notice: $('gameNotice'),
+        board: $('board'),
+        hand: $('hand'),
+        pool: $('pool'),
+        claim: $('claimButton'),
+        pass: $('passButton'),
+        draw: $('drawButton'),
+        undo: $('undoButton'),
+        newGame: $('newGameButton'),
+      };
+
+      // The bit layout lives in game.js. Look attributes up by name rather
+      // than repeating their masks here.
+      const ATTRIBUTE = Object.fromEntries(
+        ATTRIBUTES.map((attribute) => [attribute.name, attribute]),
+      );
+      const HEIGHT = ATTRIBUTE.height;
+      const COLOUR = ATTRIBUTE.colour;
+      const SHAPE = ATTRIBUTE.shape;
+      const FILL = ATTRIBUTE.fill;
+
+      let latestState = null;
+      let latestSeat = null;
+      let pieceSerial = 0;
+
+      function hasAttribute(piece, attribute) {
+        return (piece & attribute.mask) !== 0;
+      }
+
+      function valueOf(piece, attribute) {
+        return attribute.values[hasAttribute(piece, attribute) ? 1 : 0];
+      }
+
+      function pieceLabel(piece) {
+        const values = ATTRIBUTES.map((attribute) => valueOf(piece, attribute));
+        return `${values.join(' ')} piece`;
+      }
+
+      // Each piece is drawn from above: tall pieces are large, short ones are
+      // small; light and dark fill; a round or square outline; hollow pieces
+      // have a transparent centre hole.
+      function pieceSVG(piece) {
+        const tall = hasAttribute(piece, HEIGHT);
+        const light = hasAttribute(piece, COLOUR);
+        const round = hasAttribute(piece, SHAPE);
+        const solid = hasAttribute(piece, FILL);
+
+        const half = tall ? 14 : 9;
+        const hole = tall ? 4.6 : 3.1;
+        const fill = light ? '#f4eddd' : '#3c4238';
+        const stroke = light ? '#6b6f60' : '#22261f';
+
+        const shape = round
+          ? `<circle cx="20" cy="20" r="${half}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`
+          : `<rect x="${20 - half}" y="${20 - half}" width="${half * 2}" height="${half * 2}" rx="2.5" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+
+        if (solid) {
+          return `<svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">${shape}</svg>`;
+        }
+
+        pieceSerial += 1;
+        const maskId = `piece-hole-${pieceSerial}`;
+        return `<svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+          <defs><mask id="${maskId}"><rect width="40" height="40" fill="white"/><circle cx="20" cy="20" r="${hole}" fill="black"/></mask></defs>
+          <g mask="url(#${maskId})">${shape}</g>
+          <circle cx="20" cy="20" r="${hole}" fill="none" stroke="${stroke}" stroke-width="1.1"/>
+        </svg>`;
+      }
+
+      function pieceNode(piece) {
+        const span = document.createElement('span');
+        span.className = 'piece';
+        span.innerHTML = pieceSVG(piece);
+        return span;
+      }
+
+      function playerName(state, seat) {
+        const player = state && state.seats[seat];
+        return player ? player.name : '';
+      }
+
+      function bothSeatsTaken(state) {
+        return Boolean(state && state.seats[0] && state.seats[1]);
+      }
+
+      function commonAttributeNames(result) {
+        const seen = new Set();
+        const names = [];
+        for (const line of result.lines) {
+          for (const { value } of line.attributes) {
+            if (seen.has(value)) continue;
+            seen.add(value);
+            names.push(value);
+          }
+        }
+        return names.length <= 1
+          ? (names[0] || '')
+          : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+      }
+
+      function statusText(state, seat, view) {
+        if (!bothSeatsTaken(state)) {
+          return 'Waiting for the second player. Send them the link.';
+        }
+
+        if (view.result !== null) {
+          if (view.result.type === 'draw') return 'The game is a draw.';
+          const attributes = commonAttributeNames(view.result);
+          const winner = view.result.winner;
+          if (seat === winner) {
+            return `You win with a line of ${attributes} pieces.`;
+          }
+          return `${playerName(state, winner)} wins with a line of ${attributes} pieces.`;
+        }
+
+        const actor = view.seat;
+        const actorName = playerName(state, actor);
+        const mine = seat !== null && actor === seat;
+
+        if (view.step === 'select') {
+          if (mine) {
+            return `Select a piece for ${playerName(state, 1 - seat)}.`;
+          }
+          if (seat !== null) {
+            return `${actorName} is selecting a piece for you.`;
+          }
+          return `${actorName} is selecting a piece.`;
+        }
+
+        if (view.step === 'place') {
+          return mine ? 'Place your piece.' : `${actorName} is placing a piece.`;
+        }
+
+        if (view.step === 'pass') {
+          return mine
+            ? 'No pieces remain. Call Quarto or pass.'
+            : `${actorName} can call Quarto or pass.`;
+        }
+
+        if (view.step === 'draw') {
+          return mine
+            ? 'Call Quarto or accept a draw.'
+            : `${actorName} can call Quarto or accept a draw.`;
+        }
+
+        return '';
+      }
+
+      function renderBoard(view, myTurn) {
+        const winning = new Set();
+        if (view.result !== null && view.result.type === 'win') {
+          for (const line of view.result.lines) {
+            for (const square of line.squares) winning.add(square);
+          }
+        }
+
+        const canPlace = myTurn && view.step === 'place';
+        const fragment = document.createDocumentFragment();
+
+        for (let square = 0; square < 16; square++) {
+          const piece = view.board[square];
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'square';
+          button.dataset.square = String(square);
+
+          if (piece === null) {
+            button.disabled = !canPlace;
+            button.classList.toggle('is-placeable', canPlace);
+            button.setAttribute('aria-label', `Square ${square + 1}, empty`);
+            if (canPlace) {
+              button.addEventListener('click', () => submitAction({ type: 'place', square }));
+            }
+          } else {
+            button.disabled = true;
+            button.dataset.piece = String(piece);
+            button.setAttribute('aria-label', `Square ${square + 1}, ${pieceLabel(piece)}`);
+            button.appendChild(pieceNode(piece));
+          }
+
+          if (winning.has(square)) {
+            button.classList.add('is-winning');
+            button.setAttribute('aria-label', `${button.getAttribute('aria-label')}, winning line`);
+          }
+
+          fragment.appendChild(button);
+        }
+
+        els.board.replaceChildren(fragment);
+      }
+
+      function renderHand(view) {
+        els.hand.replaceChildren();
+        if (view.hand === null) {
+          delete els.hand.dataset.piece;
+          const empty = document.createElement('span');
+          empty.className = 'hand-empty';
+          empty.textContent = '\u2014';
+          els.hand.appendChild(empty);
+          return;
+        }
+        els.hand.dataset.piece = String(view.hand);
+        els.hand.appendChild(pieceNode(view.hand));
+      }
+
+      function renderPool(view, myTurn) {
+        const selectable = myTurn && view.step === 'select';
+        const fragment = document.createDocumentFragment();
+
+        for (const piece of view.remaining) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'pool-piece';
+          button.dataset.piece = String(piece);
+          button.disabled = !selectable;
+          button.classList.toggle('is-selectable', selectable);
+          button.setAttribute('aria-label', `Select ${pieceLabel(piece)}`);
+          button.appendChild(pieceNode(piece));
+          if (selectable) {
+            button.addEventListener('click', () => submitAction({ type: 'select', piece }));
+          }
+          fragment.appendChild(button);
+        }
+
+        els.pool.replaceChildren(fragment);
+      }
+
+      function renderControls(state, view, seat, active, myTurn) {
+        const hasPiece = view.board.some((piece) => piece !== null);
+        els.claim.hidden = !(myTurn && hasPiece);
+        els.pass.hidden = !(myTurn && view.step === 'pass');
+        els.draw.hidden = !(myTurn && view.step === 'draw');
+
+        const lastAction = state.actions[state.actions.length - 1];
+        els.undo.hidden = !(active && lastAction !== undefined && lastAction.seat === seat);
+        els.newGame.hidden = !(bothSeatsTaken(state) && seat !== null);
+      }
+
+      function render(state, seat) {
+        latestState = state;
+        latestSeat = seat;
+
+        if (!state) {
+          els.game.hidden = true;
+          return;
+        }
+
+        els.game.hidden = false;
+        pieceSerial = 0;
+
+        const view = viewOf(state);
+        const ready = bothSeatsTaken(state);
+        const active = ready && seat !== null && view.result === null;
+        const myTurn = active && view.seat === seat;
+
+        els.status.textContent = statusText(state, seat, view);
+
+        if (view.wrongClaim !== null) {
+          els.notice.hidden = false;
+          els.notice.textContent =
+            `No Quarto. ${playerName(state, view.wrongClaim.seat)} called it, but there is no line.`;
+        } else {
+          els.notice.hidden = true;
+          els.notice.textContent = '';
+        }
+
+        renderBoard(view, myTurn);
+        renderHand(view);
+        renderPool(view, myTurn);
+        renderControls(state, view, seat, active, myTurn);
+      }
+
+      function submitAction(action) {
+        if (!latestState || latestSeat === null) return;
+        const outcome = applyAction(latestState, { ...action, seat: latestSeat });
+        if (!outcome.ok) {
+          console.warn('Rejected action:', outcome.error);
+          return;
+        }
+        window.QuartoOnline.submit(outcome.game);
+      }
+
+      function undoLastAction() {
+        if (!latestState || latestSeat === null) return;
+        const outcome = undo(latestState, latestSeat);
+        if (!outcome.ok) {
+          console.warn('Could not undo:', outcome.error);
+          return;
+        }
+        window.QuartoOnline.submit(outcome.game);
+      }
+
+      function startNewGame() {
+        if (!latestState || latestSeat === null) return;
+        const view = viewOf(latestState);
+        if (view.result === null &&
+            !window.confirm('End this game and start a new one?')) {
+          return;
+        }
+        window.QuartoOnline.submit({
+          starter: 1 - latestState.starter,
+          actions: [],
+        });
+      }
+
+      els.claim.addEventListener('click', () => submitAction({ type: 'claim' }));
+      els.pass.addEventListener('click', () => submitAction({ type: 'pass' }));
+      els.draw.addEventListener('click', () => submitAction({ type: 'draw' }));
+      els.undo.addEventListener('click', undoLastAction);
+      els.newGame.addEventListener('click', startNewGame);
+
+      if (window.QuartoOnline) {
+        window.QuartoOnline.onStateChange(render);
+      } else {
+        console.error('The online layer is not available.');
+      }
+    })();
+  </script>
+</body>
+</html>
