@@ -1,7 +1,10 @@
 # Quarto
 
-An online version of the board game Quarto for two players. It is a static web
-page: there is no build step, no package to install, and no backend to run.
+An online version of the board game Quarto for two players. Each player uses
+their own device, and the two play in real time through a shared link.
+
+It is a static web page: there is no app to install, no account, no build
+step, no package to install, and no backend to run.
 
 ## How to play
 
@@ -67,3 +70,19 @@ node --test
   still has it stored opens it again.
 - Two tabs in one browser share one client ID, so they are the same seat. Use
   two devices or two browser profiles.
+
+## Design
+
+`misc/Quarto.html` is a reference design for a later visual update. The page
+does not use it yet.
+
+## Credits
+
+Quarto is a board game designed by Blaise Müller and published by Gigamic.
+This project is an independent implementation and has no connection with
+them.
+
+## Licence
+
+This project is licensed under the
+[GNU Affero General Public License v3.0](LICENSE).
