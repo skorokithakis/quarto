@@ -313,6 +313,68 @@
       cursor: not-allowed;
     }
 
+    .chip-pencil {
+      flex: none;
+      width: 16px;
+      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+    }
+    .chip-pencil svg { display: block; }
+
+    .chip-edit {
+      appearance: none;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: var(--control-transition);
+    }
+    .chip-edit:hover .chip-pencil { color: var(--charcoal); }
+    .chip-edit:focus-visible {
+      outline: 2px solid var(--indigo);
+      outline-offset: 3px;
+    }
+    .chip-edit:disabled {
+      cursor: not-allowed;
+    }
+    .chip-edit:disabled .chip-pencil {
+      color: var(--disabled);
+      opacity: 0.4;
+    }
+
+    .seat-edit {
+      appearance: none;
+      width: 100%;
+      font: inherit;
+      color: var(--charcoal);
+      text-align: left;
+      cursor: pointer;
+      transition: var(--control-transition);
+    }
+    .seat-edit:hover .chip-pencil { color: var(--charcoal); }
+    .seat-edit:focus-visible {
+      outline: 2px solid var(--indigo);
+      outline-offset: 3px;
+    }
+    .seat-edit:disabled {
+      color: var(--charcoal);
+      cursor: not-allowed;
+    }
+    .seat-edit:disabled .chip-pencil {
+      color: var(--disabled);
+      opacity: 0.4;
+    }
+
+    .prompt-actions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-8);
+    }
+    .prompt-actions .button-quiet { width: 100%; }
+
     .link {
       display: inline-flex;
       align-items: center;
@@ -778,7 +840,13 @@
       background: var(--winning-cell);
       box-shadow: inset 0 0 0 3px var(--indigo);
     }
-    .cell-preview { display: none; }
+    .cell-preview {
+      display: none;
+      width: 100%;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+    }
     .square.is-target:hover .cell-preview { display: flex; opacity: 0.45; }
     .board .piece {
       width: var(--board-piece);
@@ -788,6 +856,12 @@
       flex: none;
     }
     .board .piece.is-faded { opacity: 0.4; }
+    @media (max-width: 599px) {
+      .board .piece {
+        width: max(66px, 87.5%);
+        height: max(66px, 87.5%);
+      }
+    }
     .recent-dot {
       position: absolute;
       top: 6px;
@@ -1024,11 +1098,12 @@
               <button id="copyLink" class="button-strong" type="button">Copy link</button>
             </div>
             <div class="seats">
-              <div class="seat is-you">
+              <button class="seat is-you seat-edit name-edit" id="waitingEdit" type="button" aria-label="Change your name" disabled>
                 <span class="seat-dot" aria-hidden="true"></span>
                 <span class="seat-name" id="youSeatName"></span>
                 <span class="seat-you">You</span>
-              </div>
+                <span class="chip-pencil" aria-hidden="true"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.2 2.3a1.2 1.2 0 0 1 1.7 0l.8.8a1.2 1.2 0 0 1 0 1.7L5.4 13.1l-3 .8.8-3z"></path><path d="M9.8 3.7l2.5 2.5"></path></svg></span>
+              </button>
               <div class="seat is-empty">
                 <span class="seat-name">Second player</span>
               </div>
@@ -1039,18 +1114,7 @@
         <section class="game" id="game" hidden>
           <div class="game-main">
             <div class="info">
-              <div class="chips" id="chips">
-                <div class="chip" id="chip0">
-                  <span class="chip-dot" aria-hidden="true"></span>
-                  <span class="chip-name" id="chipName0"></span>
-                  <span class="chip-you" id="chipYou0" hidden>You</span>
-                </div>
-                <div class="chip" id="chip1">
-                  <span class="chip-dot" aria-hidden="true"></span>
-                  <span class="chip-name" id="chipName1"></span>
-                  <span class="chip-you" id="chipYou1" hidden>You</span>
-                </div>
-              </div>
+              <div class="chips" id="chips"></div>
               <div class="chips-skeleton" id="chipsSkeleton" aria-hidden="true">
                 <div class="chip"><span class="skeleton-bar chip-bar"></span></div>
                 <div class="chip"><span class="skeleton-bar chip-bar"></span></div>
@@ -1122,8 +1186,9 @@
         <label for="nameInput">Your name</label>
         <input id="nameInput" name="name" type="text" maxlength="32" autocomplete="nickname" spellcheck="false">
       </div>
-      <div class="button-row">
+      <div class="button-row prompt-actions">
         <button class="button-strong" id="nameButton" type="submit">Continue</button>
+        <button class="button-quiet" id="nameCancel" type="button" hidden>Cancel</button>
       </div>
     </form>
   </div>
@@ -1209,9 +1274,12 @@
         connection: $('connection'),
         connectionText: $('connectionText'),
         game: $('game'),
+        chips: $('chips'),
+        waitingEdit: $('waitingEdit'),
         nameOverlay: $('nameOverlay'),
         nameForm: $('nameForm'),
         nameInput: $('nameInput'),
+        nameCancel: $('nameCancel'),
       };
 
       const clientId = getClientId();
@@ -1222,7 +1290,7 @@
       let connectionState = 'connecting';
       let connectionSubscriber = null;
 
-      let playerName = null;
+      let playerName = typedName(storageGet(STORAGE_NAME)) || null;
       let connecting = false;
       let connectTimer = null;
       let connectDelay = CONNECT_BACKOFF_START;
@@ -1510,7 +1578,9 @@
         // the prompt.
         if (playerName === null && seatOf(currentState) === null &&
             (!currentState || currentState.seats.indexOf(null) !== -1)) {
-          playerName = await askName();
+          const answer = await askName('first', '');
+          if (answer.type === 'cancel') return false;
+          playerName = answer.name;
 
           let latest;
           try {
@@ -1728,6 +1798,7 @@
         els.waiting.hidden = !waiting;
         els.game.hidden = waiting;
         els.room.dataset.phase = waiting ? 'waiting' : 'game';
+        els.waitingEdit.disabled = connectionState !== 'connected';
 
         if (waiting) els.youSeatName.textContent = state.seats[mySeat].name;
       }
@@ -1737,6 +1808,7 @@
         connectionState = state;
         els.connectionText.textContent = CONNECTION_LABELS[state];
         els.connection.dataset.state = state;
+        els.waitingEdit.disabled = connectionState !== 'connected';
 
         if (changed && connectionSubscriber) {
           try {
@@ -1763,10 +1835,14 @@
 
       // ── Name prompt ──────────────────────────────────────────────────────
 
-      function askName() {
+      let nameMode = 'first';
+
+      function askName(mode, initial) {
         return new Promise((resolve) => {
           nameResolver = resolve;
-          els.nameInput.value = storageGet(STORAGE_NAME) || '';
+          nameMode = mode;
+          els.nameCancel.hidden = mode !== 'edit';
+          els.nameInput.value = initial || '';
           els.nameOverlay.hidden = false;
           window.setTimeout(() => els.nameInput.focus(), 0);
         });
@@ -1784,8 +1860,59 @@
         const typed = typedName(name);
         if (typed) storageSet(STORAGE_NAME, typed);
         else storageRemove(STORAGE_NAME);
+        els.nameInput.blur();
         els.nameOverlay.hidden = true;
-        resolve(name);
+        resolve({ type: 'submit', name });
+      }
+
+      function cancelName() {
+        if (!nameResolver || nameMode !== 'edit') return;
+
+        const resolve = nameResolver;
+        nameResolver = null;
+        els.nameInput.blur();
+        els.nameOverlay.hidden = true;
+        resolve({ type: 'cancel' });
+      }
+
+      async function editOwnName() {
+        if (connectionState !== 'connected') return;
+        if (!currentState) return;
+        const seat = seatOf(currentState);
+        if (seat === null) return;
+
+        const current = currentState.seats[seat] ? currentState.seats[seat].name : '';
+        const answer = await askName('edit', current);
+        if (answer.type === 'submit') {
+          playerName = answer.name;
+          renameOwnSeat(answer.name);
+        }
+        focusEditControl();
+      }
+
+      function focusEditControl() {
+        window.setTimeout(() => {
+          const target = els.waiting.hidden
+            ? document.querySelector('.chip-edit')
+            : els.waitingEdit;
+          if (target && !target.disabled) target.focus();
+        }, 50);
+      }
+
+      function renameOwnSeat(rawName) {
+        if (!currentState) return false;
+        const seat = seatOf(currentState);
+        if (seat === null) return false;
+
+        const next = clone(currentState);
+        next.seats[seat] = {
+          ...next.seats[seat],
+          name: cleanName(rawName, seat),
+        };
+        next.version = currentState.version + 1;
+        setState(next);
+        pushStateNow();
+        return true;
       }
 
       // ── Clipboard ────────────────────────────────────────────────────────
@@ -1893,6 +2020,10 @@
           return connectionState;
         },
 
+        rename(name) {
+          return renameOwnSeat(name);
+        },
+
         onConnectionChange(callback) {
           if (typeof callback !== 'function') {
             throw new TypeError('onConnectionChange() expects a function');
@@ -1961,6 +2092,19 @@
       });
       els.copyLink.addEventListener('click', copyShareLink);
       els.nameForm.addEventListener('submit', onSubmitName);
+      els.nameCancel.addEventListener('click', cancelName);
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || els.nameOverlay.hidden) return;
+        if (nameMode !== 'edit' || !nameResolver) return;
+        event.preventDefault();
+        cancelName();
+      });
+      for (const button of document.querySelectorAll('.name-edit')) {
+        button.addEventListener('click', editOwnName);
+      }
+      els.chips.addEventListener('click', (event) => {
+        if (event.target.closest('.chip-edit')) editOwnName();
+      });
       els.leaveRoomPhone.href = window.location.pathname;
       els.leaveRoomDesktop.href = window.location.pathname;
 
@@ -1990,9 +2134,7 @@
 
       const els = {
         game: $('game'),
-        chips: [$('chip0'), $('chip1')],
-        chipNames: [$('chipName0'), $('chipName1')],
-        chipYous: [$('chipYou0'), $('chipYou1')],
+        chips: $('chips'),
         status: $('gameStatus'),
         statusLabel: $('statusLabel'),
         statusText: $('statusText'),
@@ -2024,6 +2166,7 @@
       const FILL = ATTRIBUTE.fill;
 
       const CONNECTION_LOST_NOTICE_MS = 5000;
+      const PENCIL_SVG = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.2 2.3a1.2 1.2 0 0 1 1.7 0l.8.8a1.2 1.2 0 0 1 0 1.7L5.4 13.1l-3 .8.8-3z"></path><path d="M9.8 3.7l2.5 2.5"></path></svg>';
 
       let latestState = null;
       let latestSeat = null;
@@ -2268,6 +2411,56 @@
         element.disabled = disabled;
       }
 
+      let chipsSeat;
+
+      // The own chip is the name control, so its DOM is only rebuilt when the
+      // seat changes. Rebuilding on every state update would drop focus.
+      function buildChips(seat) {
+        const fragment = document.createDocumentFragment();
+
+        for (let i = 0; i < 2; i++) {
+          const own = seat === i;
+          const chip = document.createElement(own ? 'button' : 'div');
+          chip.className = 'chip';
+          chip.id = `chip${i}`;
+          chip.classList.toggle('is-you', own);
+
+          if (own) {
+            chip.type = 'button';
+            chip.classList.add('chip-edit');
+            chip.setAttribute('aria-label', 'Change your name');
+          }
+
+          const dot = document.createElement('span');
+          dot.className = 'chip-dot';
+          dot.setAttribute('aria-hidden', 'true');
+          chip.appendChild(dot);
+
+          const name = document.createElement('span');
+          name.className = 'chip-name';
+          name.id = `chipName${i}`;
+          chip.appendChild(name);
+
+          if (own) {
+            const you = document.createElement('span');
+            you.className = 'chip-you';
+            you.id = `chipYou${i}`;
+            you.textContent = 'You';
+            chip.appendChild(you);
+
+            const glyph = document.createElement('span');
+            glyph.className = 'chip-pencil';
+            glyph.setAttribute('aria-hidden', 'true');
+            glyph.innerHTML = PENCIL_SVG;
+            chip.appendChild(glyph);
+          }
+
+          fragment.appendChild(chip);
+        }
+
+        return fragment;
+      }
+
       function renderChips(state, seat, view) {
         const lost = connection !== 'connected' && connectionLostLong;
         let activeSeat = null;
@@ -2276,11 +2469,16 @@
           else if (view.result.type === 'win') activeSeat = view.result.winner;
         }
 
+        if (chipsSeat !== seat) {
+          chipsSeat = seat;
+          els.chips.replaceChildren(buildChips(seat));
+        }
+
         for (let i = 0; i < 2; i++) {
-          els.chips[i].classList.toggle('is-active', activeSeat === i);
-          els.chips[i].classList.toggle('is-you', seat === i);
-          els.chipNames[i].textContent = nameOf(state, i);
-          els.chipYous[i].hidden = seat !== i;
+          const chip = els.chips.children[i];
+          chip.classList.toggle('is-active', activeSeat === i);
+          chip.querySelector('.chip-name').textContent = nameOf(state, i);
+          if (i === seat) chip.disabled = connection !== 'connected';
         }
       }
 

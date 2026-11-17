@@ -1,6 +1,6 @@
 ---
 id: qua-nqbpu
-status: open
+status: closed
 deps: [qua-gllwl]
 links: []
 created: 2026-11-17T19:56:04Z
@@ -36,3 +36,7 @@ A browser with a stored name creates a room and joins a room by link with no pro
 **2026-11-17T19:56:18Z**
 
 ready for implementation
+
+**2026-11-17T20:17:07Z**
+
+One small extra from the game screen work, to do in the same round: in the phone layout below 600px the board piece has a fixed size of 70px, but the cell grows with the screen (86px at 414px wide, 132px at 599px), so the piece looks too small on large phones. Make the piece follow the cell there: about 87.5% of the cell (the ratio of the 390px frame, 70 in 80), never larger than the cell minus 6px (the 360px frame, 66 in 72). The hover preview must use the same size. The other width ranges already have their frame sizes; do not change them.
