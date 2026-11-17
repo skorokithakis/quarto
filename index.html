@@ -1279,7 +1279,9 @@
         nameOverlay: $('nameOverlay'),
         nameForm: $('nameForm'),
         nameInput: $('nameInput'),
+        nameButton: $('nameButton'),
         nameCancel: $('nameCancel'),
+        main: document.querySelector('main'),
       };
 
       const clientId = getClientId();
@@ -1809,6 +1811,7 @@
         els.connectionText.textContent = CONNECTION_LABELS[state];
         els.connection.dataset.state = state;
         els.waitingEdit.disabled = connectionState !== 'connected';
+        els.nameButton.disabled = nameMode === 'edit' && connectionState !== 'connected';
 
         if (changed && connectionSubscriber) {
           try {
@@ -1841,11 +1844,19 @@
         return new Promise((resolve) => {
           nameResolver = resolve;
           nameMode = mode;
+          els.nameButton.disabled = mode === 'edit' && connectionState !== 'connected';
           els.nameCancel.hidden = mode !== 'edit';
           els.nameInput.value = initial || '';
+          els.main.inert = true;
           els.nameOverlay.hidden = false;
           window.setTimeout(() => els.nameInput.focus(), 0);
         });
+      }
+
+      function closeNameOverlay() {
+        els.nameInput.blur();
+        els.nameOverlay.hidden = true;
+        els.main.inert = false;
       }
 
       function onSubmitName(event) {
@@ -1860,8 +1871,7 @@
         const typed = typedName(name);
         if (typed) storageSet(STORAGE_NAME, typed);
         else storageRemove(STORAGE_NAME);
-        els.nameInput.blur();
-        els.nameOverlay.hidden = true;
+        closeNameOverlay();
         resolve({ type: 'submit', name });
       }
 
@@ -1870,8 +1880,7 @@
 
         const resolve = nameResolver;
         nameResolver = null;
-        els.nameInput.blur();
-        els.nameOverlay.hidden = true;
+        closeNameOverlay();
         resolve({ type: 'cancel' });
       }
 
@@ -1883,9 +1892,8 @@
 
         const current = currentState.seats[seat] ? currentState.seats[seat].name : '';
         const answer = await askName('edit', current);
-        if (answer.type === 'submit') {
+        if (answer.type === 'submit' && renameOwnSeat(answer.name)) {
           playerName = answer.name;
-          renameOwnSeat(answer.name);
         }
         focusEditControl();
       }
@@ -1900,6 +1908,7 @@
       }
 
       function renameOwnSeat(rawName) {
+        if (connectionState !== 'connected') return false;
         if (!currentState) return false;
         const seat = seatOf(currentState);
         if (seat === null) return false;
@@ -2730,18 +2739,36 @@
       }
 
       function renderSkeleton() {
+        const lost = connection !== 'connected' && connectionLostLong;
+
         els.game.classList.add('is-skeleton');
         els.status.removeAttribute('aria-busy');
         els.status.hidden = false;
         els.notice.hidden = true;
         els.status.setAttribute('aria-busy', 'true');
+
+        if (lost) showNotice('connection', 'Connection lost. The game is paused.');
+
         renderBoardSkeleton();
         renderPoolSkeleton();
         renderHandSkeleton();
+        els.board.classList.toggle('is-paused', lost);
+        els.hand.classList.toggle('is-paused', lost);
         renderControls(null, null, null);
       }
 
+      let lastRenderKey = null;
+
       function render() {
+        const notice = connection !== 'connected' && connectionLostLong;
+        // The full content, not the version: when the two players act at the
+        // same moment, two different states carry the same version, and the
+        // one that arrives last must replace the other on the screen.
+        const stateKey = latestState ? JSON.stringify(latestState) : 'none';
+        const key = `${stateKey}|${latestSeat}|${connection}|${notice}`;
+        if (key === lastRenderKey) return;
+        lastRenderKey = key;
+
         if (!latestState) {
           renderSkeleton();
           return;
