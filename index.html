@@ -1684,6 +1684,10 @@
         touch();
 
         try {
+          // Firefox resolves this fetch only when the first body byte arrives,
+          // not when the headers arrive. Gweet sends one keepalive newline as
+          // soon as the subscription is registered for this reason. Without it,
+          // Firefox waits up to 30 seconds for the first ticker keepalive.
           let response;
           try {
             response = await fetch(gweetStreamUrl(`?streaming=1&${cacheBuster()}`), {
