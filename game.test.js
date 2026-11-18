@@ -1,7 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ATTRIBUTES, createGame, viewOf, applyAction, undo, isLegalGame } from './game.js';
+import {
+  ATTRIBUTES,
+  createGame,
+  viewOf,
+  applyAction,
+  undo,
+  isLegalGame,
+  addWinnerToScore,
+} from './game.js';
 
 function play(game, actions) {
   let current = game;
@@ -465,6 +473,176 @@ test('isLegalGame accepts legal histories and rejects malformed ones', () => {
   assert.equal(isLegalGame(undefined), false);
   assert.equal(isLegalGame({}), false);
   assert.equal(isLegalGame({ starter: 2, actions: [] }), false);
+});
+
+test('either seat can resign at any step, in or out of turn', () => {
+  const opening = play(createGame(0), [{ seat: 0, type: 'select', piece: 1 }]);
+
+  // Step 'place', seat 1 to act: either seat may resign.
+  const inTurn = applyAction(opening, { seat: 1, type: 'resign' });
+  assert.equal(inTurn.ok, true);
+  let view = viewOf(inTurn.game);
+  assert.deepEqual(view.result, { type: 'win', winner: 0, forfeit: true, lines: [] });
+  assert.equal(view.seat, null);
+  assert.equal(view.step, null);
+
+  const outOfTurn = applyAction(opening, { seat: 0, type: 'resign' });
+  assert.equal(outOfTurn.ok, true);
+  assert.deepEqual(viewOf(outOfTurn.game).result, {
+    type: 'win',
+    winner: 1,
+    forfeit: true,
+    lines: [],
+  });
+
+  // Step 'select' after a placement, seat 1 to act.
+  const selecting = play(opening, [{ seat: 1, type: 'place', square: 7 }]);
+  assert.equal(viewOf(selecting).step, 'select');
+  assert.equal(viewOf(selecting).seat, 1);
+  const otherSeatResigns = applyAction(selecting, { seat: 0, type: 'resign' });
+  assert.equal(otherSeatResigns.ok, true);
+  view = viewOf(otherSeatResigns.game);
+  assert.equal(view.result.winner, 1);
+  assert.equal(view.board[7], 1);
+
+  // Step 'pass' after the last placement, seat 0 to act.
+  const full = scriptedPlacements(
+    0,
+    Array.from({ length: 16 }, (_, i) => placement(i, i)),
+  );
+  const passing = play(createGame(0), full.actions);
+  assert.equal(viewOf(passing).step, 'pass');
+  assert.equal(viewOf(passing).seat, 0);
+  const passResign = applyAction(passing, { seat: 1, type: 'resign' });
+  assert.equal(passResign.ok, true);
+  assert.equal(viewOf(passResign.game).result.winner, 0);
+
+  // Step 'draw' after the pass, seat 1 to act.
+  const drawing = play(passing, [{ seat: 0, type: 'pass' }]);
+  assert.equal(viewOf(drawing).step, 'draw');
+  assert.equal(viewOf(drawing).seat, 1);
+  const drawResign = applyAction(drawing, { seat: 0, type: 'resign' });
+  assert.equal(drawResign.ok, true);
+  assert.equal(viewOf(drawResign.game).result.winner, 1);
+});
+
+test('resign is rejected on an empty game and after the game ends', () => {
+  const empty = createGame(0);
+  assert.equal(applyAction(empty, { seat: 0, type: 'resign' }).ok, false);
+  assert.equal(applyAction(empty, { seat: 1, type: 'resign' }).ok, false);
+  assert.equal(applyAction(empty, { seat: 2, type: 'resign' }).ok, false);
+
+  const started = play(createGame(0), [{ seat: 0, type: 'select', piece: 1 }]);
+  const resigned = play(started, [{ seat: 1, type: 'resign' }]);
+  assert.equal(viewOf(resigned).result.forfeit, true);
+
+  assert.equal(applyAction(resigned, { seat: 0, type: 'resign' }).ok, false);
+  assert.equal(applyAction(resigned, { seat: 1, type: 'resign' }).ok, false);
+  assert.equal(applyAction(resigned, { seat: 1, type: 'place', square: 0 }).ok, false);
+  assert.equal(undo(resigned, 1).ok, false);
+  assert.equal(undo(resigned, 0).ok, false);
+
+  const win = scriptedPlacements(0, [
+    placement(1, 0),
+    placement(7, 1),
+    placement(13, 2),
+    placement(11, 3),
+  ]);
+  win.actions.push({ seat: win.seat, type: 'claim' });
+  const won = play(createGame(0), win.actions);
+  assert.equal(applyAction(won, { seat: 1 - win.seat, type: 'resign' }).ok, false);
+
+  const full = scriptedPlacements(
+    0,
+    Array.from({ length: 16 }, (_, i) => placement(i, i)),
+  );
+  const drawn = play(createGame(0), [
+    ...full.actions,
+    { seat: full.seat, type: 'pass' },
+    { seat: 1 - full.seat, type: 'draw' },
+  ]);
+  assert.equal(viewOf(drawn).result.type, 'draw');
+  assert.equal(applyAction(drawn, { seat: 0, type: 'resign' }).ok, false);
+});
+
+test('isLegalGame accepts a resignation', () => {
+  const opened = scriptedPlacements(0, [placement(1, 0), placement(7, 1)]);
+  assert.equal(viewOf({ starter: 0, actions: opened.actions }).seat, 0);
+
+  assert.equal(
+    isLegalGame({ starter: 0, actions: [...opened.actions, { seat: 0, type: 'resign' }] }),
+    true,
+  );
+  // Out of turn: seat 1 resigns while seat 0 is to act.
+  assert.equal(
+    isLegalGame({ starter: 0, actions: [...opened.actions, { seat: 1, type: 'resign' }] }),
+    true,
+  );
+
+  assert.equal(isLegalGame({ starter: 0, actions: [{ seat: 0, type: 'resign' }] }), false);
+  assert.equal(
+    isLegalGame({
+      starter: 0,
+      actions: [...opened.actions, { seat: 2, type: 'resign' }],
+    }),
+    false,
+  );
+  assert.equal(
+    isLegalGame({
+      starter: 0,
+      actions: [
+        ...opened.actions,
+        { seat: 0, type: 'resign' },
+        { seat: 1, type: 'resign' },
+      ],
+    }),
+    false,
+  );
+});
+
+test('addWinnerToScore counts wins and forfeits, but not draws or unfinished games', () => {
+  const score = [2, 3];
+
+  assert.deepEqual(addWinnerToScore(score, createGame(1)), [2, 3]);
+
+  const rowWin = scriptedPlacements(0, [
+    placement(1, 0),
+    placement(7, 1),
+    placement(13, 2),
+    placement(11, 3),
+  ]);
+  rowWin.actions.push({ seat: rowWin.seat, type: 'claim' });
+  const won = play(createGame(0), rowWin.actions);
+  assert.equal(viewOf(won).result.winner, 0);
+  assert.deepEqual(addWinnerToScore(score, won), [3, 3]);
+
+  const forfeited = play(createGame(0), [
+    { seat: 0, type: 'select', piece: 1 },
+    { seat: 0, type: 'resign' },
+  ]);
+  assert.deepEqual(viewOf(forfeited).result, {
+    type: 'win',
+    winner: 1,
+    forfeit: true,
+    lines: [],
+  });
+  assert.deepEqual(addWinnerToScore(score, forfeited), [2, 4]);
+
+  const full = scriptedPlacements(
+    0,
+    Array.from({ length: 16 }, (_, i) => placement(i, i)),
+  );
+  const drawn = play(createGame(0), [
+    ...full.actions,
+    { seat: full.seat, type: 'pass' },
+    { seat: 1 - full.seat, type: 'draw' },
+  ]);
+  assert.deepEqual(addWinnerToScore(score, drawn), [2, 3]);
+
+  assert.deepEqual(score, [2, 3]);
+  const next = addWinnerToScore(score, createGame(0));
+  assert.notEqual(next, score);
+  assert.deepEqual(next, score);
 });
 
 test('piece attribute bits are exposed for the renderer', () => {

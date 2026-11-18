@@ -899,6 +899,13 @@
       font: 600 12px/16px var(--font-family);
       color: var(--muted);
     }
+    /* Never shrinks: a long name elides instead of the count. */
+    .chip-score {
+      flex: none;
+      font: 600 12px/16px var(--font-family);
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
     .chip-bar { width: 96px; height: 10px; border-radius: 5px; background: var(--line); }
     .chips-skeleton .chip { background: transparent; }
 
@@ -1567,6 +1574,20 @@
         );
       }
 
+      function isValidScore(value) {
+        return (
+          Array.isArray(value) &&
+          value.length === 2 &&
+          value.every((wins) => Number.isInteger(wins) && wins >= 0)
+        );
+      }
+
+      // A state saved before scores existed, or by an old tab, has no score.
+      // It means a fresh score, so a room keeps working across the update.
+      function scoreOf(state) {
+        return state && isValidScore(state.score) ? [...state.score] : [0, 0];
+      }
+
       function isValidState(value) {
         return (
           Boolean(value) &&
@@ -1577,6 +1598,7 @@
           Array.isArray(value.seats) &&
           value.seats.length === 2 &&
           value.seats.every(isSeat) &&
+          (value.score === undefined || isValidScore(value.score)) &&
           (value.starter === 0 || value.starter === 1) &&
           Array.isArray(value.actions) &&
           isLegalGame(value)
@@ -1811,6 +1833,7 @@
         setState({
           version: 1,
           seats: [{ id: clientId, name: cleanName(rawName, 0) }, null],
+          score: [0, 0],
           starter: 0,
           actions: [],
         });
@@ -2267,10 +2290,24 @@
             throw new TypeError('state.actions must be JSON-serializable');
           }
 
+          // Callers that only add an action omit the score; it is room state
+          // and must survive them. A finished game's winner is added by the
+          // caller (with the score helper) when it starts the next game.
+          let score;
+          if (next.score === undefined) {
+            score = scoreOf(currentState);
+          } else {
+            if (!isValidScore(next.score)) {
+              throw new TypeError('state.score must be two non-negative integers');
+            }
+            score = [...next.score];
+          }
+
           // version and seats belong to the online layer, not to the caller.
           setState({
             version: currentState.version + 1,
             seats: clone(currentState.seats),
+            score,
             starter: next.starter,
             actions,
           });
@@ -2334,7 +2371,7 @@
   </script>
 
     <script type="module">
-    import { ATTRIBUTES, viewOf, applyAction, undo } from './game.js';
+    import { ATTRIBUTES, viewOf, applyAction, undo, addWinnerToScore } from './game.js';
 
     (() => {
       'use strict';
@@ -2500,6 +2537,11 @@
         return state && state.seats[seat] ? state.seats[seat].name : '';
       }
 
+      // Rooms made before scores existed have no score; it means a fresh one.
+      function storedScore(state) {
+        return Array.isArray(state.score) ? state.score : [0, 0];
+      }
+
       function commonValues(result) {
         const seen = new Set();
         const values = [];
@@ -2516,8 +2558,23 @@
       function statusContent(state, seat, view) {
         if (view.result !== null) {
           if (view.result.type === 'win') {
-            const values = commonValues(view.result);
             const winner = view.result.winner;
+            const loser = 1 - winner;
+            if (view.result.forfeit) {
+              // A forfeit has no winning line, so there are no attributes to
+              // name in the message.
+              let text;
+              if (seat === loser) {
+                text = `You forfeit. ${nameOf(state, winner)} wins.`;
+              } else if (seat === winner) {
+                text = `${nameOf(state, loser)} forfeits. You win.`;
+              } else {
+                text = `${nameOf(state, loser)} forfeits. ${nameOf(state, winner)} wins.`;
+              }
+              return { label: 'Forfeit', text, tone: 'is-win' };
+            }
+
+            const values = commonValues(view.result);
             const text = winner === seat
               ? `You win with four ${values} pieces in a line.`
               : `${nameOf(state, winner)} wins with four ${values} pieces in a line.`;
@@ -2659,7 +2716,14 @@
             you.id = `chipYou${i}`;
             you.textContent = 'You';
             chip.appendChild(you);
+          }
 
+          const score = document.createElement('span');
+          score.className = 'chip-score';
+          score.id = `chipScore${i}`;
+          chip.appendChild(score);
+
+          if (own) {
             const glyph = document.createElement('span');
             glyph.className = 'chip-pencil';
             glyph.setAttribute('aria-hidden', 'true');
@@ -2673,7 +2737,7 @@
         return fragment;
       }
 
-      function renderChips(state, seat, view) {
+      function renderChips(state, seat, view, score) {
         const lost = connection !== 'connected' && connectionLostLong;
         let activeSeat = null;
         if (!lost) {
@@ -2690,6 +2754,7 @@
           const chip = els.chips.children[i];
           chip.classList.toggle('is-active', activeSeat === i);
           chip.querySelector('.chip-name').textContent = nameOf(state, i);
+          chip.querySelector('.chip-score').textContent = String(score[i]);
           if (i === seat) chip.disabled = connection !== 'connected';
         }
       }
@@ -2771,7 +2836,10 @@
             const pieceElement = pieceNode(piece);
             if (winning.has(square)) {
               cell.classList.add('is-winning');
-            } else if (view.result !== null && view.result.type === 'win') {
+            } else if (view.result !== null && view.result.type === 'win' &&
+                winning.size > 0) {
+              // Fade the rest only when there is a winning line to show. A
+              // forfeit win has no lines, and should not dim the whole board.
               pieceElement.classList.add('is-faded');
             }
             cell.appendChild(pieceElement);
@@ -2864,6 +2932,7 @@
           els.undo.hidden = false;
           setDisabled(els.undo, true);
           els.newGame.hidden = false;
+          els.newGame.textContent = 'New game';
           els.newGame.className = 'button-quiet';
           setDisabled(els.newGame, true);
           return;
@@ -2902,6 +2971,11 @@
         );
 
         els.newGame.hidden = false;
+        // A game with actions can be forfeited; an untouched game just gets a
+        // new starter, and a finished one starts over with the win counted.
+        els.newGame.textContent = playing && state.actions.length > 0
+          ? 'Forfeit'
+          : 'New game';
         els.newGame.className = playing ? 'button-quiet' : 'button-strong';
         setDisabled(els.newGame, !connected);
       }
@@ -2994,7 +3068,10 @@
 
         els.game.classList.remove('is-skeleton');
         const view = viewOf(latestState);
-        renderChips(latestState, latestSeat, view);
+        // The winner of the game just played shows in the chips at once; the
+        // next game folds it into the stored score.
+        const score = addWinnerToScore(storedScore(latestState), latestState);
+        renderChips(latestState, latestSeat, view, score);
         renderStatus(latestState, latestSeat, view);
         renderBoard(latestState, view, latestSeat);
         renderPool(latestState, view, latestSeat);
@@ -3025,18 +3102,38 @@
         window.QuartoOnline.submit(outcome.game);
       }
 
+      function forfeitGame() {
+        if (connection !== 'connected') return;
+        if (!latestState || latestSeat === null) return;
+        const opponent = nameOf(latestState, 1 - latestSeat);
+        if (!window.confirm(`Forfeit this game? ${opponent} gets the win.`)) {
+          return;
+        }
+        submitAction({ type: 'resign' });
+      }
+
       function startNewGame() {
         if (connection !== 'connected') return;
         if (!latestState || latestSeat === null) return;
         const view = viewOf(latestState);
-        if (view.result === null &&
-            !window.confirm('End this game and start a new one?')) {
-          return;
-        }
+        const score = view.result === null
+          ? storedScore(latestState)
+          : addWinnerToScore(storedScore(latestState), latestState);
         window.QuartoOnline.submit({
           starter: 1 - latestState.starter,
           actions: [],
+          score,
         });
+      }
+
+      function handleGameButton() {
+        if (!latestState) return;
+        const view = viewOf(latestState);
+        if (view.result === null && latestState.actions.length > 0) {
+          forfeitGame();
+        } else {
+          startNewGame();
+        }
       }
 
       function handleConnection(next) {
@@ -3073,7 +3170,7 @@
       els.pass.addEventListener('click', () => submitAction({ type: 'pass' }));
       els.draw.addEventListener('click', () => submitAction({ type: 'draw' }));
       els.undo.addEventListener('click', undoLastAction);
-      els.newGame.addEventListener('click', startNewGame);
+      els.newGame.addEventListener('click', handleGameButton);
 
       latestState = window.QuartoOnline.getState();
       latestSeat = window.QuartoOnline.getSeat();

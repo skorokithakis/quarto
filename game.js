@@ -101,6 +101,8 @@ function derive(game) {
       seat = 1 - seat;
     } else if (action.type === 'draw') {
       result = { type: 'draw' };
+    } else if (action.type === 'resign') {
+      result = { type: 'win', winner: 1 - action.seat, forfeit: true, lines: [] };
     }
   }
 
@@ -165,6 +167,19 @@ export function applyAction(game, action) {
 
   if (state.result !== null) return rejected('The game is over.');
   if (action === null || typeof action !== 'object') return rejected('Invalid action.');
+
+  // Resignation is the one action a seat may take out of turn.
+  if (action.type === 'resign') {
+    if (action.seat !== 0 && action.seat !== 1) return rejected('Invalid seat.');
+    if (game.actions.length === 0) return rejected('There is nothing to forfeit.');
+    return {
+      ok: true,
+      game: {
+        starter: game.starter,
+        actions: [...game.actions, { seat: action.seat, type: 'resign' }],
+      },
+    };
+  }
 
   if (action.seat !== state.seat) {
     return rejected('That seat is not to act.');
@@ -237,6 +252,21 @@ export function isLegalGame(game) {
   } catch {
     return false;
   }
+}
+
+/**
+ * Return a new `[wins0, wins1]` score with the winner of `game` added.
+ *
+ * A Quarto win and a forfeit both count. Draws and unfinished games add
+ * nothing. The input score is never changed.
+ */
+export function addWinnerToScore(score, game) {
+  const next = [score[0], score[1]];
+  const { result } = viewOf(game);
+  if (result !== null && result.type === 'win') {
+    next[result.winner] += 1;
+  }
+  return next;
 }
 
 /**

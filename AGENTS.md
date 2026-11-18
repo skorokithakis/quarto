@@ -11,3 +11,7 @@ file up to date.
 The file is a packed export. The root page holds a JSON manifest (base64,
 gzip) of nested pages, and each nested page is again a manifest plus a
 template. Unpack both levels to read the frames.
+
+## Finishing work
+
+When a change is done, commit it and push it, unless the owner says not to.
