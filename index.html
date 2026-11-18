@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="favicon.svg">
   <title>Quarto</title>
   <script>
     // Resolve the theme before the first paint so a reload never shows the
@@ -2353,6 +2353,7 @@
         bottomControls: $('bottomControls'),
         undo: $('undoButton'),
         newGame: $('newGameButton'),
+        favicon: document.querySelector('link[rel="icon"]'),
       };
 
       // The bit layout lives in game.js. Look attributes up by name rather
@@ -2366,6 +2367,8 @@
       const FILL = ATTRIBUTE.fill;
 
       const CONNECTION_LOST_NOTICE_MS = 5000;
+      const FAVICON_DEFAULT = 'favicon.svg';
+      const FAVICON_TURN = 'favicon-turn.svg';
       const PENCIL_SVG = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.2 2.3a1.2 1.2 0 0 1 1.7 0l.8.8a1.2 1.2 0 0 1 0 1.7L5.4 13.1l-3 .8.8-3z"></path><path d="M9.8 3.7l2.5 2.5"></path></svg>';
 
       let latestState = null;
@@ -2948,6 +2951,20 @@
         renderControls(null, null, null);
       }
 
+      function renderFavicon(view) {
+        const yourTurn = Boolean(
+          view &&
+          view.result === null &&
+          latestSeat !== null &&
+          bothSeatsTaken(latestState) &&
+          view.seat === latestSeat
+        );
+        const href = yourTurn ? FAVICON_TURN : FAVICON_DEFAULT;
+        if (els.favicon.getAttribute('href') !== href) {
+          els.favicon.setAttribute('href', href);
+        }
+      }
+
       let lastRenderKey = null;
 
       function render() {
@@ -2962,6 +2979,7 @@
 
         if (!latestState) {
           renderSkeleton();
+          renderFavicon(null);
           return;
         }
 
@@ -2973,6 +2991,7 @@
         renderPool(latestState, view, latestSeat);
         renderHand(latestState, view);
         renderControls(latestState, latestSeat, view);
+        renderFavicon(view);
       }
 
       function submitAction(action) {
