@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
   <link rel="icon" href="data:,">
   <title>Quarto</title>
   <style>
@@ -57,6 +57,7 @@
       --indigo: #34507A;
       --indigo-hover: #3E5D8C;
       --indigo-wall: #22385A;
+      --on-indigo: #FFFFFF;
 
       /* Strong button */
       --block: #3A332D;
@@ -79,6 +80,7 @@
       /* Control surfaces from the control-states sheet */
       --control-line: #CFC4B0;
       --disabled-surface: #E6DFD2;
+      --button-hover: #FFFFFF;
 
       /* Type */
       --font-family: Commissioner, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -119,6 +121,49 @@
 
       --control-transition: transform 120ms ease, box-shadow 120ms ease,
         background-color 120ms ease, opacity 120ms ease;
+    }
+
+    /* Dark mode swaps the UI colours only; type, spacing and piece colours
+       keep their light values. Values come from the dark palette frame. */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        /* Surfaces */
+        --linen: #1C1916;
+        --paper: #27231F;
+        --sunk: #141210;
+        --line: #3B352E;
+        --line-strong: #5E554A;
+
+        /* Board */
+        --board: #A39072;
+        --board-wall: #7B6A4F;
+        --cell: #968366;
+        --cell-hover: #A89574;
+        --winning-cell: #D6C7A8;
+
+        /* Text */
+        --charcoal: #EDE6DA;
+        --muted: #A89D8E;
+        --disabled: #857B6E;
+
+        /* Accent */
+        --indigo: #8DA6D6;
+        --indigo-hover: #A4B9E2;
+        --indigo-wall: #566F9E;
+        --on-indigo: #121A2B;
+
+        /* Strong button */
+        --block: #E2D9CA;
+        --block-hover: #EEE7DB;
+        --block-wall: #A4977F;
+
+        /* Control surfaces */
+        --control-line: #4D463D;
+        --disabled-surface: #2B2723;
+        /* The design has no dark hover; this is one step above --paper,
+           as #FFFFFF is in light mode. */
+        --button-hover: #312C27;
+      }
     }
 
     * { box-sizing: border-box; }
@@ -228,7 +273,7 @@
       margin: 0 0 var(--edge-quarto);
       border-radius: var(--radius-large-button);
       background: var(--indigo);
-      color: #FFFFFF;
+      color: var(--on-indigo);
       font: var(--type-quarto-button);
       letter-spacing: 0.02em;
       box-shadow: 0 var(--edge-quarto) 0 var(--indigo-wall);
@@ -282,7 +327,7 @@
       font: var(--type-body-strong);
       box-shadow: 0 var(--edge-button) 0 var(--control-line);
     }
-    .button:hover { background: #FFFFFF; }
+    .button:hover { background: var(--button-hover); }
     .button:active {
       transform: translateY(var(--press-button));
       box-shadow: 0 1px 0 var(--control-line);
