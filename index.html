@@ -575,6 +575,21 @@
     .actions { display: flex; flex-direction: column; gap: var(--space-8); }
     .error { color: var(--charcoal); font: var(--type-body); }
 
+    .install-message {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-12);
+    }
+    .install-message .button-row {
+      gap: var(--space-8);
+      flex-wrap: wrap;
+    }
+    .install-message .button {
+      flex: 1 1 auto;
+      margin: 0;
+    }
+    .install-message .button-quiet { flex: 1 1 auto; }
+
     /* ── Theme toggle ──────────────────────────────────────────────────── */
 
     /* Sits in the page corner on the lobby and moves into the room line on
@@ -1261,6 +1276,13 @@
           <a id="lastRoomLink" class="link" href="#" hidden></a>
           <p class="error" id="lobbyError" role="alert" hidden></p>
         </div>
+        <div class="install-message" id="installMessage" hidden>
+          <p class="muted" id="installText"></p>
+          <div class="button-row">
+            <button class="button" id="installButton" type="button">Install</button>
+            <button class="button-quiet" id="installDismiss" type="button">Not now</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1437,6 +1459,7 @@
       const STORAGE_LAST_ROOM = 'quarto.lastRoom';
       const STORAGE_STATE_PREFIX = 'quarto.state.';
       const STORAGE_NAME = 'quarto.name';
+      const STORAGE_INSTALL_DISMISSED = 'quarto.installDismissed';
 
       const CONNECTION_LABELS = Object.freeze({
         connecting: 'Connecting',
@@ -1465,6 +1488,10 @@
         createGame: $('createGame'),
         lastRoomLink: $('lastRoomLink'),
         lobbyError: $('lobbyError'),
+        installMessage: $('installMessage'),
+        installText: $('installText'),
+        installButton: $('installButton'),
+        installDismiss: $('installDismiss'),
         roomCode: $('roomCode'),
         leaveRoomPhone: $('leaveRoomPhone'),
         leaveRoomDesktop: $('leaveRoomDesktop'),
@@ -2203,6 +2230,78 @@
         return /^[A-Z0-9]{1,64}$/.test(code) ? code : null;
       }
 
+      // ── Install message ──────────────────────────────────────────────────
+
+      // Chromium fires `beforeinstallprompt` when the page can be installed;
+      // other browsers never do. iOS has no event at all, so an iOS lobby
+      // shows instructions instead. The iOS check is a guess: it also matches
+      // in-app browsers on iOS, which cannot install the app but will still
+      // see the instructions.
+      const INSTALL_TEXT_CHROMIUM = 'Add Quarto to your home screen and open it like an app.';
+      const INSTALL_TEXT_IOS = 'To add Quarto to your home screen, tap Share, then Add to Home Screen.';
+
+      let installPrompt = null;
+
+      function isIos() {
+        const agent = navigator.userAgent || '';
+        if (/iPhone|iPad|iPod/.test(agent)) return true;
+        // iPadOS reports itself as a Mac; touch points give it away.
+        return /Mac/.test(navigator.platform || '') && navigator.maxTouchPoints > 1;
+      }
+
+      function isStandalone() {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+          navigator.standalone === true;
+      }
+
+      function hideInstallMessage() {
+        els.installMessage.hidden = true;
+      }
+
+      function maybeShowInstallMessage() {
+        if (els.lobby.hidden || isStandalone()) return;
+        if (storageGet(STORAGE_INSTALL_DISMISSED) !== null) return;
+
+        if (installPrompt) {
+          els.installText.textContent = INSTALL_TEXT_CHROMIUM;
+          els.installButton.hidden = false;
+          els.installMessage.hidden = false;
+        } else if (isIos()) {
+          els.installText.textContent = INSTALL_TEXT_IOS;
+          els.installButton.hidden = true;
+          els.installMessage.hidden = false;
+        }
+      }
+
+      // The event is kept on room pages too, but the message is lobby-only.
+      // preventDefault() is always called so the browser never shows its own
+      // install bar in place of this message.
+      window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        installPrompt = event;
+        maybeShowInstallMessage();
+      });
+
+      window.addEventListener('appinstalled', () => {
+        installPrompt = null;
+        hideInstallMessage();
+      });
+
+      els.installDismiss.addEventListener('click', () => {
+        storageSet(STORAGE_INSTALL_DISMISSED, '1');
+        hideInstallMessage();
+      });
+
+      els.installButton.addEventListener('click', () => {
+        const event = installPrompt;
+        installPrompt = null;
+        try {
+          const result = event ? event.prompt() : null;
+          if (result && typeof result.catch === 'function') result.catch(() => {});
+        } catch { /* the prompt can only be shown once */ }
+        hideInstallMessage();
+      });
+
       function showLobby(message) {
         els.lobby.hidden = false;
         els.room.hidden = true;
@@ -2220,6 +2319,8 @@
         } else {
           els.lastRoomLink.hidden = true;
         }
+
+        maybeShowInstallMessage();
       }
 
       function startRoom(code) {
