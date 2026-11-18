@@ -1,9 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- The piece is copied from favicon.svg. It is scaled to 76% of the square,
-       centred, so the Android maskable safe circle (80% diameter) keeps it
-       whole with a little margin for antialiasing. -->
+  <!-- The piece is copied from favicon.svg. It is scaled to 60% of the square
+       and centred. The Android maskable safe circle is 80% of the square, so
+       the piece could be larger, but a larger piece looks cramped as a home
+       screen icon. -->
   <rect width="512" height="512" fill="#F2EDE3"/>
-  <g transform="translate(256 256) scale(4.52465) translate(-50 -50)">
+  <g transform="translate(256 256) scale(3.572) translate(-50 -50)">
     <path d="M22 36 V64 A28 28 0 0 0 78 64 V36 Z" fill="#D4C09B" stroke="#8C7653" stroke-width="2" stroke-linejoin="round"/>
     <circle cx="50" cy="36" r="28" fill="#F4E9D2" stroke="#8C7653" stroke-width="2"/>
   </g>
