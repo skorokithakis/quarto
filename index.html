@@ -6,6 +6,75 @@
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="data:,">
   <title>Quarto</title>
+  <script>
+    // Resolve the theme before the first paint so a reload never shows the
+    // other mode. Auto (the default) follows the system scheme; a stored
+    // choice overrides it. The picker button lives in the page; this script
+    // owns the state so the resolution can run this early.
+    (() => {
+      'use strict';
+
+      const STORAGE_THEME = 'quarto.theme';
+      const system = window.matchMedia('(prefers-color-scheme: dark)');
+      const root = document.documentElement;
+
+      function storedMode() {
+        try {
+          const value = window.localStorage.getItem(STORAGE_THEME);
+          return value === 'light' || value === 'dark' ? value : 'auto';
+        } catch {
+          return 'auto';
+        }
+      }
+
+      let mode = storedMode();
+
+      function resolvedTheme() {
+        if (mode !== 'auto') return mode;
+        return system.matches ? 'dark' : 'light';
+      }
+
+      function applyTheme() {
+        root.dataset.theme = resolvedTheme();
+        root.dataset.themeMode = mode;
+      }
+
+      function setMode(next) {
+        mode = next;
+        try {
+          if (mode === 'auto') window.localStorage.removeItem(STORAGE_THEME);
+          else window.localStorage.setItem(STORAGE_THEME, mode);
+        } catch { /* storage unavailable */ }
+        applyTheme();
+      }
+
+      function renderThemeLabel() {
+        for (const button of document.querySelectorAll('.theme-toggle')) {
+          const label = `Theme: ${mode}`;
+          button.setAttribute('aria-label', label);
+          button.title = label;
+        }
+      }
+
+      function cycleTheme() {
+        setMode(mode === 'auto' ? 'light' : mode === 'light' ? 'dark' : 'auto');
+        renderThemeLabel();
+      }
+
+      applyTheme();
+
+      system.addEventListener('change', () => {
+        if (mode === 'auto') applyTheme();
+      });
+
+      document.addEventListener('DOMContentLoaded', () => {
+        for (const button of document.querySelectorAll('.theme-toggle')) {
+          button.addEventListener('click', cycleTheme);
+        }
+        renderThemeLabel();
+      });
+    })();
+  </script>
   <style>
     /* Commissioner is served from this page: one variable file per subset. */
     @font-face {
@@ -34,6 +103,8 @@
     }
 
     :root {
+      color-scheme: light;
+
       /* Surfaces */
       --linen: #F2EDE3;
       --paper: #FAF7F0;
@@ -125,45 +196,45 @@
 
     /* Dark mode swaps the UI colours only; type, spacing and piece colours
        keep their light values. Values come from the dark palette frame. */
-    @media (prefers-color-scheme: dark) {
-      :root {
-        /* Surfaces */
-        --linen: #1C1916;
-        --paper: #27231F;
-        --sunk: #141210;
-        --line: #3B352E;
-        --line-strong: #5E554A;
+    :root[data-theme="dark"] {
+      color-scheme: dark;
 
-        /* Board */
-        --board: #A39072;
-        --board-wall: #7B6A4F;
-        --cell: #968366;
-        --cell-hover: #A89574;
-        --winning-cell: #D6C7A8;
+      /* Surfaces */
+      --linen: #1C1916;
+      --paper: #27231F;
+      --sunk: #141210;
+      --line: #3B352E;
+      --line-strong: #5E554A;
 
-        /* Text */
-        --charcoal: #EDE6DA;
-        --muted: #A89D8E;
-        --disabled: #857B6E;
+      /* Board */
+      --board: #A39072;
+      --board-wall: #7B6A4F;
+      --cell: #968366;
+      --cell-hover: #A89574;
+      --winning-cell: #D6C7A8;
 
-        /* Accent */
-        --indigo: #8DA6D6;
-        --indigo-hover: #A4B9E2;
-        --indigo-wall: #566F9E;
-        --on-indigo: #121A2B;
+      /* Text */
+      --charcoal: #EDE6DA;
+      --muted: #A89D8E;
+      --disabled: #857B6E;
 
-        /* Strong button */
-        --block: #E2D9CA;
-        --block-hover: #EEE7DB;
-        --block-wall: #A4977F;
+      /* Accent */
+      --indigo: #8DA6D6;
+      --indigo-hover: #A4B9E2;
+      --indigo-wall: #566F9E;
+      --on-indigo: #121A2B;
 
-        /* Control surfaces */
-        --control-line: #4D463D;
-        --disabled-surface: #2B2723;
-        /* The design has no dark hover; this is one step above --paper,
-           as #FFFFFF is in light mode. */
-        --button-hover: #312C27;
-      }
+      /* Strong button */
+      --block: #E2D9CA;
+      --block-hover: #EEE7DB;
+      --block-wall: #A4977F;
+
+      /* Control surfaces */
+      --control-line: #4D463D;
+      --disabled-surface: #2B2723;
+      /* The design has no dark hover; this is one step above --paper,
+         as #FFFFFF is in light mode. */
+      --button-hover: #312C27;
     }
 
     * { box-sizing: border-box; }
@@ -495,6 +566,46 @@
     .actions { display: flex; flex-direction: column; gap: var(--space-8); }
     .error { color: var(--charcoal); font: var(--type-body); }
 
+    /* ── Theme toggle ──────────────────────────────────────────────────── */
+
+    /* Sits in the page corner on the lobby and moves into the room line on
+       room screens, so it always shares that row's inset. */
+    .theme-toggle {
+      position: absolute;
+      top: 8px;
+      right: var(--space-16);
+      appearance: none;
+      flex: none;
+      width: 44px;
+      height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius-small-button);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: var(--control-transition);
+    }
+    .theme-toggle:hover { color: var(--charcoal); }
+    .theme-toggle:active { color: var(--charcoal); opacity: 0.7; }
+    .theme-toggle:focus-visible {
+      outline: 2px solid var(--indigo);
+      outline-offset: -4px;
+      border-radius: var(--radius-small-button);
+    }
+    .room-line .theme-toggle { position: static; }
+
+    .theme-toggle svg { display: none; }
+    :root[data-theme-mode="light"] .theme-toggle .theme-icon-light,
+    :root[data-theme-mode="dark"] .theme-toggle .theme-icon-dark { display: block; }
+    :root:not([data-theme-mode="light"]):not([data-theme-mode="dark"]) .theme-toggle .theme-icon-auto {
+      display: block;
+    }
+
     /* ── Room line ─────────────────────────────────────────────────────── */
 
     #room {
@@ -553,6 +664,7 @@
       display: flex;
       align-items: center;
       gap: 14px;
+      margin-left: auto;
       color: var(--muted);
       font: 500 13px/18px var(--font-family);
     }
@@ -1086,6 +1198,14 @@
       .status-zone, .game-status, .game-notice { min-height: 88px; }
     }
 
+    /* A 44px theme toggle next to the full room line needs a little more room
+       than the design's row spacing leaves on the smallest phones. From 390px
+       up the row fits as designed, even with "Reconnecting". */
+    @media (max-width: 389px) {
+      .room-line { gap: 0; }
+      .room-meta { gap: 8px; }
+    }
+
     @media (min-width: 840px) {
       .screen { padding: 0 var(--space-48) 60px; }
       .overlay { padding: 0 var(--space-48) 60px; }
@@ -1094,12 +1214,26 @@
       .room-body { padding: 0; }
       .lobby-link { display: none; }
       .lobby-wordmark { display: flex; }
+      .theme-toggle { right: var(--space-48); }
     }
 </style>
 </head>
 <body>
   <main>
     <section id="lobby" class="screen" hidden>
+      <button class="theme-toggle" type="button" aria-label="Theme: auto" title="Theme: auto">
+        <svg class="theme-icon-auto" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="5.5"></circle>
+          <path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor" stroke="none"></path>
+        </svg>
+        <svg class="theme-icon-light" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="8" r="3"></circle>
+          <path d="M8 1.5V3M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1"></path>
+        </svg>
+        <svg class="theme-icon-dark" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 8.53A6 6 0 1 1 7.47 2 4.67 4.67 0 0 0 14 8.53z"></path>
+        </svg>
+      </button>
       <div class="screen-column">
         <div class="brand-pieces" id="brandPieces"></div>
         <div class="heading">
@@ -1310,6 +1444,8 @@
       const els = {
         lobby: $('lobby'),
         room: $('room'),
+        roomLine: document.querySelector('.room-line'),
+        themeToggle: document.querySelector('.theme-toggle'),
         createGame: $('createGame'),
         lastRoomLink: $('lastRoomLink'),
         lobbyError: $('lobbyError'),
@@ -2038,6 +2174,7 @@
       function showLobby(message) {
         els.lobby.hidden = false;
         els.room.hidden = true;
+        els.lobby.prepend(els.themeToggle);
         els.nameOverlay.hidden = true;
         els.lobbyError.hidden = !message;
         els.lobbyError.textContent = message || '';
@@ -2059,6 +2196,7 @@
 
         els.lobby.hidden = true;
         els.room.hidden = false;
+        els.roomLine.append(els.themeToggle);
         els.nameOverlay.hidden = true;
         els.lobbyError.hidden = true;
         renderShare();
