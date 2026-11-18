@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="favicon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-title" content="Quarto">
+  <meta name="theme-color" content="#F2EDE3">
   <title>Quarto</title>
   <script>
     // Resolve the theme before the first paint so a reload never shows the
@@ -15,6 +19,8 @@
       'use strict';
 
       const STORAGE_THEME = 'quarto.theme';
+      // These two values mirror --linen in the light and dark themes.
+      const THEME_COLORS = { light: '#F2EDE3', dark: '#1C1916' };
       const system = window.matchMedia('(prefers-color-scheme: dark)');
       const root = document.documentElement;
 
@@ -35,8 +41,11 @@
       }
 
       function applyTheme() {
-        root.dataset.theme = resolvedTheme();
+        const theme = resolvedTheme();
+        root.dataset.theme = theme;
         root.dataset.themeMode = mode;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        if (themeColor) themeColor.setAttribute('content', THEME_COLORS[theme]);
       }
 
       function setMode(next) {

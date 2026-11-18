@@ -4,7 +4,8 @@
 
 Quarto is a board game for two players. Open the link, select **Create game**,
 and send the room link to a friend. Each of you plays on your own device. There
-is nothing to install and no account to make.
+is nothing to install and no account to make. You can add it to the home screen
+of your phone and open it like an app.
 
 ## For developers
 
