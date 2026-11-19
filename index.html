@@ -897,7 +897,7 @@
       box-shadow: inset 0 0 0 1.5px var(--indigo);
     }
     .chip-name {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -914,9 +914,11 @@
       font: 600 12px/16px var(--font-family);
       color: var(--muted);
     }
-    /* Never shrinks: a long name elides instead of the count. */
+    /* Never shrinks: a long name elides instead of the count. The auto
+       margin pushes it to the right edge, so both chips' counts line up. */
     .chip-score {
       flex: none;
+      margin-left: auto;
       font: 600 12px/16px var(--font-family);
       color: var(--muted);
       font-variant-numeric: tabular-nums;
@@ -2819,11 +2821,6 @@
             chip.appendChild(you);
           }
 
-          const score = document.createElement('span');
-          score.className = 'chip-score';
-          score.id = `chipScore${i}`;
-          chip.appendChild(score);
-
           if (own) {
             const glyph = document.createElement('span');
             glyph.className = 'chip-pencil';
@@ -2831,6 +2828,12 @@
             glyph.innerHTML = PENCIL_SVG;
             chip.appendChild(glyph);
           }
+
+          // Last in both chips, so the two counts line up at the right edge.
+          const score = document.createElement('span');
+          score.className = 'chip-score';
+          score.id = `chipScore${i}`;
+          chip.appendChild(score);
 
           fragment.appendChild(chip);
         }
