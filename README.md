@@ -7,6 +7,9 @@ and send the room link to a friend. Each of you plays on your own device. There
 is nothing to install and no account to make. You can add it to the home screen
 of your phone and open it like an app.
 
+If you have no one to play with, select **Play the computer**. The page shows
+the rules before your first game.
+
 ## For developers
 
 The game is a static web page with no build step and no packages.

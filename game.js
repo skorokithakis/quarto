@@ -45,7 +45,13 @@ function commonAttributes(pieces) {
   return attributes;
 }
 
-function winningLines(board, lastPlaced) {
+/**
+ * Return the complete lines through `lastPlaced` that share an attribute.
+ *
+ * Each line is `{ squares, attributes }`. A claim is valid exactly when this
+ * list is non-empty for the last placed square.
+ */
+export function winningLines(board, lastPlaced) {
   if (lastPlaced === null) return [];
   const lines = [];
   for (const squares of LINES) {

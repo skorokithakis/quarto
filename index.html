@@ -780,6 +780,26 @@
 
     .notice { margin: var(--space-16) 0 0; color: var(--muted); font: var(--type-body); }
 
+    /* ── Rules screen ──────────────────────────────────────────────────── */
+
+    .rules-text {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-12);
+    }
+
+    .rules-picture {
+      display: flex;
+      gap: 2px;
+      margin-left: -12px;
+    }
+    .rules-picture svg { display: block; flex: none; }
+
+    /* Script moves focus to these sections when the rules open and close, so
+       a screen reader announces the change. They are not controls, so they
+       get no focus ring. */
+    #rules:focus, #game:focus { outline: none; }
+
     /* ── Name prompt ───────────────────────────────────────────────────── */
 
     .overlay {
@@ -1275,6 +1295,7 @@
         </div>
         <div class="actions">
           <button id="createGame" class="button-strong" type="button">Create game</button>
+          <button id="playComputer" class="button" type="button">Play the computer</button>
           <a id="lastRoomLink" class="link" href="#" hidden></a>
           <p class="error" id="lobbyError" role="alert" hidden></p>
         </div>
@@ -1334,7 +1355,27 @@
           </div>
         </section>
 
-        <section class="game" id="game" hidden>
+        <section class="rules" id="rules" tabindex="-1" aria-labelledby="rulesTitle" hidden>
+          <div class="screen-column">
+            <div class="heading">
+              <h1 class="title" id="rulesTitle">How to play</h1>
+            </div>
+            <div class="rules-text">
+              <p>There are 16 pieces, all different. Each piece is tall or short, light or dark, round or square, and solid or hollow.</p>
+              <p><strong>You do not choose the piece you place.</strong> The other player selects it for you. You place it on an empty square, then you select a piece for the other player.</p>
+              <p><strong>Make a line of four pieces that have one thing in common</strong>, for example four tall pieces or four hollow pieces. A line is a row, a column or a diagonal. The pieces belong to no one, so it does not matter who placed the other three.</p>
+              <div class="rules-picture" id="rulesPicture" role="img" aria-labelledby="rulesCaption"></div>
+              <p class="muted" id="rulesCaption">These four pieces are all tall. That is a Quarto.</p>
+              <p><strong>Call Quarto to win.</strong> When your piece completes a line, press <strong>Quarto</strong> before you give the next piece. If you forget, the other player can call Quarto on your line and win. A wrong call costs nothing.</p>
+              <p>If the board is full and no one called Quarto, the game is a draw.</p>
+            </div>
+            <div class="button-row">
+              <button id="rulesButton" class="button-strong" type="button">Start game</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="game" id="game" tabindex="-1" hidden>
           <div class="game-main">
             <div class="info">
               <div class="chips" id="chips"></div>
@@ -1431,6 +1472,9 @@
        *   window.QuartoOnline.getSeat()
        *     -> 0, 1, or null (null means spectator or not loaded yet).
        *
+       *   window.QuartoOnline.getComputerSeat()
+       *     -> 1 in the local game against the computer, null in an online room.
+       *
        *   window.QuartoOnline.submit(state)
        *     -> true if the change was accepted, false if this client is not
        *        seated or no state has loaded yet. Takes the full state object;
@@ -1460,8 +1504,15 @@
       const STORAGE_CLIENT_ID = 'quarto.clientId';
       const STORAGE_LAST_ROOM = 'quarto.lastRoom';
       const STORAGE_STATE_PREFIX = 'quarto.state.';
+      // A computer room has no room code. Room codes are upper-case, so this
+      // lower-case key can never collide with one.
+      const STORAGE_COMPUTER_STATE = STORAGE_STATE_PREFIX + 'computer';
       const STORAGE_NAME = 'quarto.name';
       const STORAGE_INSTALL_DISMISSED = 'quarto.installDismissed';
+      const STORAGE_RULES_SEEN = 'quarto.rulesSeen';
+
+      const COMPUTER_SEAT = 1;
+      const COMPUTER_ID = 'computer';
 
       const CONNECTION_LABELS = Object.freeze({
         connecting: 'Connecting',
@@ -1488,6 +1539,7 @@
         roomLine: document.querySelector('.room-line'),
         themeToggle: document.querySelector('.theme-toggle'),
         createGame: $('createGame'),
+        playComputer: $('playComputer'),
         lastRoomLink: $('lastRoomLink'),
         lobbyError: $('lobbyError'),
         installMessage: $('installMessage'),
@@ -1495,9 +1547,12 @@
         installButton: $('installButton'),
         installDismiss: $('installDismiss'),
         roomCode: $('roomCode'),
+        roomName: document.querySelector('.room-name'),
         leaveRoomPhone: $('leaveRoomPhone'),
         leaveRoomDesktop: $('leaveRoomDesktop'),
         waiting: $('waiting'),
+        rules: $('rules'),
+        rulesButton: $('rulesButton'),
         youSeatName: $('youSeatName'),
         shareLink: $('shareLink'),
         copyLink: $('copyLink'),
@@ -1517,6 +1572,8 @@
       const clientId = getClientId();
 
       let roomCode = null;
+      let computerRoom = false;
+      let rulesOpen = false;
       let currentState = null;
       let subscriber = null;
       let connectionState = 'connecting';
@@ -1568,7 +1625,7 @@
       }
 
       function stateStorageKey(code) {
-        return STORAGE_STATE_PREFIX + code;
+        return computerRoom ? STORAGE_COMPUTER_STATE : STORAGE_STATE_PREFIX + code;
       }
 
       function loadLocalState(code) {
@@ -2046,13 +2103,31 @@
         const waiting = Boolean(
           state && mySeat !== null && state.seats[1 - mySeat] === null
         );
+        const rules = computerRoom && rulesOpen;
 
-        els.waiting.hidden = !waiting;
-        els.game.hidden = waiting;
-        els.room.dataset.phase = waiting ? 'waiting' : 'game';
+        els.rules.hidden = !rules;
+        els.waiting.hidden = rules || !waiting;
+        els.game.hidden = rules || waiting;
+        els.room.dataset.phase = rules ? 'rules' : waiting ? 'waiting' : 'game';
         els.waitingEdit.disabled = connectionState !== 'connected';
 
         if (waiting) els.youSeatName.textContent = state.seats[mySeat].name;
+      }
+
+      function showRules(buttonLabel) {
+        if (!computerRoom) return;
+        rulesOpen = true;
+        els.rulesButton.textContent = buttonLabel;
+        renderRoom();
+        els.rules.focus();
+      }
+
+      function closeRules() {
+        if (!computerRoom || !rulesOpen) return;
+        rulesOpen = false;
+        storageSet(STORAGE_RULES_SEEN, '1');
+        renderRoom();
+        els.game.focus();
       }
 
       function setConnection(state) {
@@ -2340,6 +2415,54 @@
         connect();
       }
 
+      function createComputerState() {
+        return {
+          version: 1,
+          seats: [
+            { id: clientId, name: cleanName(playerName, 0) },
+            { id: COMPUTER_ID, name: 'Computer' },
+          ],
+          score: [0, 0],
+          starter: 0,
+          actions: [],
+        };
+      }
+
+      function startComputerRoom() {
+        computerRoom = true;
+        roomCode = null;
+
+        const rulesLink = document.createElement('a');
+        rulesLink.className = 'link';
+        rulesLink.href = '#';
+        rulesLink.textContent = 'Rules';
+        rulesLink.addEventListener('click', (event) => {
+          event.preventDefault();
+          showRules('Back to game');
+        });
+
+        els.lobby.hidden = true;
+        els.room.hidden = false;
+        els.roomLine.append(rulesLink);
+        els.roomLine.append(els.themeToggle);
+        els.roomName.hidden = true;
+        els.connection.hidden = true;
+        els.nameOverlay.hidden = true;
+        els.lobbyError.hidden = true;
+        document.title = 'Quarto';
+        setConnection('connected');
+
+        const saved = loadLocalState(roomCode);
+        // Only a state this room wrote is restored: the player in seat 0 and
+        // the computer in seat 1. Any other state would leave the room stuck.
+        if (saved && seatOf(saved) === 0 && saved.seats[COMPUTER_SEAT]?.id === COMPUTER_ID) {
+          setState(saved);
+        } else {
+          setState(createComputerState());
+        }
+        if (storageGet(STORAGE_RULES_SEEN) === null) showRules('Start game');
+      }
+
       // ── Boot ─────────────────────────────────────────────────────────────
 
       window.QuartoOnline = Object.freeze({
@@ -2349,6 +2472,10 @@
 
         getSeat() {
           return seatOf(currentState);
+        },
+
+        getComputerSeat() {
+          return computerRoom ? COMPUTER_SEAT : null;
         },
 
         getConnection() {
@@ -2439,7 +2566,11 @@
       els.createGame.addEventListener('click', () => {
         window.location.search = '?room=' + encodeURIComponent(newRoomCode());
       });
+      els.playComputer.addEventListener('click', () => {
+        window.location.search = '?computer';
+      });
       els.copyLink.addEventListener('click', copyShareLink);
+      els.rulesButton.addEventListener('click', closeRules);
       els.nameForm.addEventListener('submit', onSubmitName);
       els.nameCancel.addEventListener('click', cancelName);
       document.addEventListener('keydown', (event) => {
@@ -2461,7 +2592,11 @@
       const rawRoom = params.get('room');
 
       if (rawRoom === null) {
-        showLobby();
+        if (params.has('computer')) {
+          startComputerRoom();
+        } else {
+          showLobby();
+        }
       } else {
         const code = normalizeRoomCode(rawRoom);
         if (code) {
@@ -2475,6 +2610,7 @@
 
     <script type="module">
     import { ATTRIBUTES, viewOf, applyAction, undo, addWinnerToScore } from './game.js';
+    import { chooseAction } from './ai.js';
 
     (() => {
       'use strict';
@@ -2516,6 +2652,7 @@
       const FILL = ATTRIBUTE.fill;
 
       const CONNECTION_LOST_NOTICE_MS = 5000;
+      const COMPUTER_DELAY_MS = 700;
       const FAVICON_DEFAULT = 'favicon.svg';
       const FAVICON_TURN = 'favicon-turn.svg';
       const PENCIL_SVG = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.2 2.3a1.2 1.2 0 0 1 1.7 0l.8.8a1.2 1.2 0 0 1 0 1.7L5.4 13.1l-3 .8.8-3z"></path><path d="M9.8 3.7l2.5 2.5"></path></svg>';
@@ -2526,6 +2663,7 @@
       let disconnectedAt = null;
       let connectionLostLong = false;
       let lostTimer = null;
+      let computerTimer = null;
 
       function hasAttribute(piece, attribute) {
         return (piece & attribute.mask) !== 0;
@@ -2608,6 +2746,17 @@
         .map((piece) => pieceSVG(piece, 72))
         .join('');
 
+      // The rules picture: four tall pieces that share no other attribute, so
+      // the row shows what the line has in common and nothing more. The row
+      // itself is the labelled image; the pieces inside it are decoration.
+      const rulesPicture = $('rulesPicture');
+      rulesPicture.innerHTML = [1, 7, 11, 13]
+        .map((piece) => pieceSVG(piece, 72))
+        .join('');
+      for (const svg of rulesPicture.querySelectorAll('svg')) {
+        svg.setAttribute('aria-hidden', 'true');
+      }
+
       // Rows: light round, light square, dark round, dark square.
       // Columns: tall solid, tall hollow, short solid, short hollow.
       function buildPoolOrder() {
@@ -2658,6 +2807,17 @@
         return values.join(', ');
       }
 
+      // The seat that made the last placement, or null when there is none.
+      // A claim on the other player's line ends the game when that player
+      // placed the completing piece and then let the other player claim it.
+      function lastPlaceSeat(state) {
+        const actions = state && Array.isArray(state.actions) ? state.actions : [];
+        for (let i = actions.length - 1; i >= 0; i--) {
+          if (actions[i].type === 'place') return actions[i].seat;
+        }
+        return null;
+      }
+
       function statusContent(state, seat, view) {
         if (view.result !== null) {
           if (view.result.type === 'win') {
@@ -2678,9 +2838,20 @@
             }
 
             const values = commonValues(view.result);
-            const text = winner === seat
-              ? `You win with four ${values} pieces in a line.`
-              : `${nameOf(state, winner)} wins with four ${values} pieces in a line.`;
+            let text;
+            if (lastPlaceSeat(state) === loser) {
+              if (seat === loser) {
+                text = `You did not call Quarto. ${nameOf(state, winner)} called it on your line of four ${values} pieces.`;
+              } else if (seat === winner) {
+                text = `${nameOf(state, loser)} did not call Quarto. You called it on their line of four ${values} pieces.`;
+              } else {
+                text = `${nameOf(state, loser)} did not call Quarto. ${nameOf(state, winner)} called it on their line of four ${values} pieces.`;
+              }
+            } else {
+              text = winner === seat
+                ? `You win with four ${values} pieces in a line.`
+                : `${nameOf(state, winner)} wins with four ${values} pieces in a line.`;
+            }
             return { label: 'Quarto!', text, tone: 'is-win' };
           }
           return {
@@ -3182,6 +3353,7 @@
         renderHand(latestState, view);
         renderControls(latestState, latestSeat, view);
         renderFavicon(view);
+        scheduleComputerMove();
       }
 
       function submitAction(action) {
@@ -3190,6 +3362,42 @@
         const outcome = applyAction(latestState, { ...action, seat: latestSeat });
         if (!outcome.ok) {
           console.warn('Rejected action:', outcome.error);
+          return;
+        }
+        window.QuartoOnline.submit(outcome.game);
+      }
+
+      // The computer room drives seat 1 from the state alone: every render
+      // (a move, a reload, a new game, an undo) reconsiders whether it is the
+      // computer's turn, so nothing depends on which control caused the change.
+      function scheduleComputerMove() {
+        if (computerTimer) {
+          clearTimeout(computerTimer);
+          computerTimer = null;
+        }
+
+        const seat = window.QuartoOnline.getComputerSeat();
+        if (seat === null || !latestState || connection !== 'connected') return;
+        const view = viewOf(latestState);
+        if (view.result !== null || view.seat !== seat) return;
+
+        computerTimer = window.setTimeout(() => {
+          computerTimer = null;
+          playComputerMove();
+        }, COMPUTER_DELAY_MS);
+      }
+
+      function playComputerMove() {
+        const seat = window.QuartoOnline.getComputerSeat();
+        if (seat === null || !latestState || connection !== 'connected') return;
+        const view = viewOf(latestState);
+        if (view.result !== null || view.seat !== seat) return;
+
+        const action = chooseAction(latestState, seat);
+        if (action === null) return;
+        const outcome = applyAction(latestState, action);
+        if (!outcome.ok) {
+          console.warn('Rejected computer action:', outcome.error);
           return;
         }
         window.QuartoOnline.submit(outcome.game);
